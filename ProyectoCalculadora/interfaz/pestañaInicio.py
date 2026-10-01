@@ -15,7 +15,8 @@ class PestanaInicio(ttk.Frame):
         marco.pack(fill="both", expand=True)
 
         texto = (
-            "Escribe los datos en el formato indicado y pulsa la operación que necesitas.\n\n"
+            "Escribe los datos en el formato indicado y pulsa la operación que necesitas.\n"
+            "Cada función muestra el resultado y el procedimiento paso a paso usado para obtenerlo.\n\n"
             "¿Cómo se escribe un vector?\n"
             "• Los componentes van separados por espacios o comas.\n"
             "• Ejemplo: 1, 2, 3     o     1 2 3\n\n"

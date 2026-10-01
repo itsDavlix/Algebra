@@ -1,4 +1,4 @@
-"""Pestaña Vectores: operaciones básicas y verificación de combinación lineal."""
+"""Pestaña Vectores: operaciones y combinación lineal con procedimiento paso a paso."""
 
 import tkinter as tk
 from tkinter import ttk
@@ -7,12 +7,16 @@ from nucleo.numeros import convertir_numero, limpiar_numero
 from nucleo.vectores import (
     leer_vector, vector_a_texto, sumar_vectores, restar_vectores, multiplicar_vector_escalar,
 )
-from nucleo.sistemas import verificar_combinacion_lineal
+from nucleo.sistemas import verificar_combinacion_lineal_con_pasos
 from interfaz.ayudas import mostrar_texto, mostrar_error, crear_area_resultado, AyudaEmergente
 
 
+def _bloque_pasos(pasos):
+    return "\n\n" + ("\n\n" + "─" * 52 + "\n\n").join(pasos)
+
+
 class PestanaVectores(ttk.Frame):
-    """Agrupa las operaciones vectoriales y la verificación de combinación lineal."""
+    """Agrupa operaciones vectoriales y muestra cómo se obtiene cada resultado."""
 
     def __init__(self, padre):
         super().__init__(padre, padding=16)
@@ -21,8 +25,6 @@ class PestanaVectores(ttk.Frame):
         self.rowconfigure(0, weight=1)
         self._construir_operaciones()
         self._construir_combinacion_lineal()
-
-    # ---------------- Operaciones básicas ----------------
 
     def _construir_operaciones(self):
         marco = ttk.LabelFrame(self, text="Operaciones con vectores", style="Seccion.TLabelframe", padding=12)
@@ -54,29 +56,64 @@ class PestanaVectores(ttk.Frame):
         ttk.Button(botones, text="Multiplicar por escalar (k·V1)", command=self._accion_escalar).pack(side="left", padx=5)
         ttk.Button(botones, text="Limpiar", command=self._limpiar_operaciones).pack(side="right")
 
-        ttk.Label(marco, text="Resultado:").pack(anchor="w", pady=(16, 4))
+        ttk.Label(marco, text="Resultado y procedimiento:").pack(anchor="w", pady=(16, 4))
         marco_resultado, self.txt_resultado = crear_area_resultado(marco, alto=9)
         marco_resultado.pack(fill="both", expand=True)
 
     def _accion_suma(self):
-        self._ejecutar(lambda: sumar_vectores(leer_vector(self.ent_v1.get()), leer_vector(self.ent_v2.get())), "V1 + V2 = ")
+        try:
+            v1 = leer_vector(self.ent_v1.get())
+            v2 = leer_vector(self.ent_v2.get())
+            resultado = sumar_vectores(v1, v2)
+            operaciones = [
+                f"Componente {i + 1}: {limpiar_numero(a)} + {limpiar_numero(b)} = {limpiar_numero(r)}"
+                for i, (a, b, r) in enumerate(zip(v1, v2, resultado))
+            ]
+            pasos = [
+                f"PASO 1. Verificar que ambos vectores tengan la misma dimensión: {len(v1)} componentes.",
+                "PASO 2. Sumar componente a componente:\n" + "\n".join(operaciones),
+                "PASO 3. Formar el vector resultado:\nV1 + V2 = " + vector_a_texto(resultado),
+            ]
+            mostrar_texto(self.txt_resultado, "V1 + V2 = " + vector_a_texto(resultado) + _bloque_pasos(pasos))
+        except ValueError as error:
+            mostrar_error(error)
 
     def _accion_resta(self):
-        self._ejecutar(lambda: restar_vectores(leer_vector(self.ent_v1.get()), leer_vector(self.ent_v2.get())), "V1 − V2 = ")
+        try:
+            v1 = leer_vector(self.ent_v1.get())
+            v2 = leer_vector(self.ent_v2.get())
+            resultado = restar_vectores(v1, v2)
+            operaciones = [
+                f"Componente {i + 1}: {limpiar_numero(a)} − {limpiar_numero(b)} = {limpiar_numero(r)}"
+                for i, (a, b, r) in enumerate(zip(v1, v2, resultado))
+            ]
+            pasos = [
+                f"PASO 1. Verificar que ambos vectores tengan la misma dimensión: {len(v1)} componentes.",
+                "PASO 2. Restar componente a componente:\n" + "\n".join(operaciones),
+                "PASO 3. Formar el vector resultado:\nV1 − V2 = " + vector_a_texto(resultado),
+            ]
+            mostrar_texto(self.txt_resultado, "V1 − V2 = " + vector_a_texto(resultado) + _bloque_pasos(pasos))
+        except ValueError as error:
+            mostrar_error(error)
 
     def _accion_escalar(self):
         try:
             v1 = leer_vector(self.ent_v1.get())
             escalar = convertir_numero(self.ent_escalar.get())
             resultado = multiplicar_vector_escalar(v1, escalar)
-            mostrar_texto(self.txt_resultado, f"{limpiar_numero(escalar)} · V1 = {vector_a_texto(resultado)}")
-        except ValueError as error:
-            mostrar_error(error)
-
-    def _ejecutar(self, operacion, etiqueta):
-        try:
-            resultado = operacion()
-            mostrar_texto(self.txt_resultado, etiqueta + vector_a_texto(resultado))
+            operaciones = [
+                f"Componente {i + 1}: {limpiar_numero(escalar)} × {limpiar_numero(a)} = {limpiar_numero(r)}"
+                for i, (a, r) in enumerate(zip(v1, resultado))
+            ]
+            pasos = [
+                f"PASO 1. Tomar k = {limpiar_numero(escalar)}.",
+                "PASO 2. Multiplicar k por cada componente de V1:\n" + "\n".join(operaciones),
+                "PASO 3. Formar el vector resultado:\nk·V1 = " + vector_a_texto(resultado),
+            ]
+            mostrar_texto(
+                self.txt_resultado,
+                f"{limpiar_numero(escalar)} · V1 = {vector_a_texto(resultado)}" + _bloque_pasos(pasos),
+            )
         except ValueError as error:
             mostrar_error(error)
 
@@ -84,8 +121,6 @@ class PestanaVectores(ttk.Frame):
         for entrada in (self.ent_v1, self.ent_v2, self.ent_escalar):
             entrada.delete(0, "end")
         mostrar_texto(self.txt_resultado, "")
-
-    # ---------------- Combinación lineal ----------------
 
     def _construir_combinacion_lineal(self):
         marco = ttk.LabelFrame(self, text="¿Es combinación lineal?", style="Seccion.TLabelframe", padding=12)
@@ -107,7 +142,7 @@ class PestanaVectores(ttk.Frame):
         ttk.Button(botones, text="Comprobar combinación lineal", style="Accion.TButton", command=self._accion_combinacion_lineal).pack(side="left", fill="x", expand=True)
         ttk.Button(botones, text="Limpiar", command=self._limpiar_combinacion).pack(side="left", padx=(6, 0))
 
-        ttk.Label(marco, text="Resultado:").pack(anchor="w", pady=(10, 4))
+        ttk.Label(marco, text="Resultado y procedimiento:").pack(anchor="w", pady=(10, 4))
         marco_resultado, self.txt_resultado_combinacion = crear_area_resultado(marco, alto=11, fuente=("Segoe UI", 10))
         marco_resultado.pack(fill="both", expand=True)
 
@@ -117,24 +152,24 @@ class PestanaVectores(ttk.Frame):
             generadores = [leer_vector(linea) for linea in lineas if linea.strip()]
             objetivo = leer_vector(self.ent_objetivo.get())
 
-            es_combinacion, coeficientes, tipo = verificar_combinacion_lineal(generadores, objetivo)
+            es_combinacion, coeficientes, tipo, pasos = verificar_combinacion_lineal_con_pasos(
+                generadores, objetivo
+            )
 
             if not es_combinacion:
-                salida = (
-                    "No, el vector no se puede escribir como combinación lineal de los vectores dados.\n\n"
-                    "Al plantear el sistema de ecuaciones no se encontró solución para los coeficientes."
-                )
+                encabezado = "RESULTADO: NO es combinación lineal."
             else:
-                salida = "Sí, el vector se puede escribir como combinación lineal de los vectores dados.\n\n"
-                salida += "Coeficientes encontrados:\n"
-                salida += "\n".join(f"c{i + 1} = {limpiar_numero(c)}" for i, c in enumerate(coeficientes))
-                salida += "\n\n" + (
+                encabezado = "RESULTADO: SÍ es combinación lineal.\n\nCoeficientes:\n"
+                encabezado += "\n".join(
+                    f"c{i + 1} = {limpiar_numero(c)}" for i, c in enumerate(coeficientes)
+                )
+                encabezado += "\n\n" + (
                     "La combinación es única."
                     if tipo == "unica"
-                    else "Hay más de una combinación posible; se muestran las variables libres en 0."
+                    else "Existen varias combinaciones; se muestra una solución con variables libres = 0."
                 )
 
-            mostrar_texto(self.txt_resultado_combinacion, salida)
+            mostrar_texto(self.txt_resultado_combinacion, encabezado + _bloque_pasos(pasos))
         except ValueError as error:
             mostrar_error(error)
 

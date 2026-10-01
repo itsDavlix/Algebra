@@ -63,12 +63,41 @@ def romano_a_entero(texto):
     return total
 
 
-def operar_romanos(romano_a, romano_b, operacion):
-    """
-    Opera dos números romanos y retorna (resultado_romano, resultado_entero).
+def pasos_romano_a_entero(texto):
+    """Devuelve el entero y una explicación símbolo por símbolo de la conversión."""
+    romano = texto.strip().upper()
+    total = romano_a_entero(romano)
+    terminos = []
+    i = 0
+    while i < len(romano):
+        actual = _VALORES[romano[i]]
+        if i + 1 < len(romano) and actual < _VALORES[romano[i + 1]]:
+            siguiente = _VALORES[romano[i + 1]]
+            valor = siguiente - actual
+            terminos.append(f"{romano[i]}{romano[i + 1]} = {siguiente} - {actual} = {valor}")
+            i += 2
+        else:
+            terminos.append(f"{romano[i]} = {actual}")
+            i += 1
+    return total, terminos
 
-    Operaciones permitidas: suma, resta, multiplicación y división exacta.
-    """
+
+def pasos_entero_a_romano(numero):
+    """Devuelve el romano y la descomposición usada para construirlo."""
+    romano = entero_a_romano(numero)
+    restante = numero
+    partes = []
+    for valor, simbolo in _PARES_ROMANOS:
+        cantidad, nuevo_restante = divmod(restante, valor)
+        if cantidad:
+            for _ in range(cantidad):
+                partes.append(f"{valor} → {simbolo}")
+            restante = nuevo_restante
+    return romano, partes
+
+
+def operar_romanos(romano_a, romano_b, operacion):
+    """Opera dos números romanos y retorna (resultado_romano, resultado_entero)."""
     a = romano_a_entero(romano_a)
     b = romano_a_entero(romano_b)
 
@@ -79,7 +108,7 @@ def operar_romanos(romano_a, romano_b, operacion):
     elif operacion == "*":
         resultado = a * b
     elif operacion == "/":
-        if b == 0:  # No puede ocurrir con romanos válidos, pero deja la función protegida.
+        if b == 0:
             raise ValueError("No se puede dividir entre cero.")
         if a % b != 0:
             raise ValueError(
@@ -95,3 +124,26 @@ def operar_romanos(romano_a, romano_b, operacion):
         raise ValueError("El resultado supera 3999, límite de la notación romana admitida.")
 
     return entero_a_romano(resultado), resultado
+
+
+def operar_romanos_con_pasos(romano_a, romano_b, operacion):
+    """Realiza la operación romana y genera un procedimiento legible."""
+    a, pasos_a = pasos_romano_a_entero(romano_a)
+    b, pasos_b = pasos_romano_a_entero(romano_b)
+    resultado_romano, resultado = operar_romanos(romano_a, romano_b, operacion)
+    _, pasos_resultado = pasos_entero_a_romano(resultado)
+
+    visible = {"*": "×", "/": "÷"}.get(operacion, operacion)
+    pasos = [
+        "PASO 1. Convertir A a decimal:\n"
+        + "\n".join(f"  • {x}" for x in pasos_a)
+        + f"\nA = {romano_a.strip().upper()} = {a}",
+        "PASO 2. Convertir B a decimal:\n"
+        + "\n".join(f"  • {x}" for x in pasos_b)
+        + f"\nB = {romano_b.strip().upper()} = {b}",
+        f"PASO 3. Realizar la operación en decimal:\n{a} {visible} {b} = {resultado}",
+        "PASO 4. Convertir el resultado decimal nuevamente a romano:\n"
+        + "\n".join(f"  • {x}" for x in pasos_resultado)
+        + f"\nResultado: {resultado} = {resultado_romano}",
+    ]
+    return resultado_romano, resultado, pasos

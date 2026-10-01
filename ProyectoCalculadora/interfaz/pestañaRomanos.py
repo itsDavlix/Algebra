@@ -1,8 +1,8 @@
-"""Pestaña para realizar operaciones con números romanos."""
+"""Pestaña para operaciones con números romanos y procedimiento paso a paso."""
 
 from tkinter import ttk
 
-from nucleo.romanos import romano_a_entero, operar_romanos
+from nucleo.romanos import operar_romanos_con_pasos
 from interfaz.ayudas import mostrar_texto, mostrar_error, crear_area_resultado, AyudaEmergente
 
 
@@ -42,18 +42,10 @@ class PestanaRomanos(ttk.Frame):
         botones.columnconfigure(0, weight=1)
         botones.columnconfigure(1, weight=1)
 
-        ttk.Button(botones, text="Sumar (A + B)", command=lambda: self._operar("+")).grid(
-            row=0, column=0, padx=4, pady=4, sticky="ew"
-        )
-        ttk.Button(botones, text="Restar (A − B)", command=lambda: self._operar("-")).grid(
-            row=0, column=1, padx=4, pady=4, sticky="ew"
-        )
-        ttk.Button(botones, text="Multiplicar (A × B)", command=lambda: self._operar("*")).grid(
-            row=1, column=0, padx=4, pady=4, sticky="ew"
-        )
-        ttk.Button(botones, text="Dividir (A ÷ B)", command=lambda: self._operar("/")).grid(
-            row=1, column=1, padx=4, pady=4, sticky="ew"
-        )
+        ttk.Button(botones, text="Sumar (A + B)", command=lambda: self._operar("+")).grid(row=0, column=0, padx=4, pady=4, sticky="ew")
+        ttk.Button(botones, text="Restar (A − B)", command=lambda: self._operar("-")).grid(row=0, column=1, padx=4, pady=4, sticky="ew")
+        ttk.Button(botones, text="Multiplicar (A × B)", command=lambda: self._operar("*")).grid(row=1, column=0, padx=4, pady=4, sticky="ew")
+        ttk.Button(botones, text="Dividir (A ÷ B)", command=lambda: self._operar("/")).grid(row=1, column=1, padx=4, pady=4, sticky="ew")
 
         ttk.Button(marco, text="Limpiar", command=self._limpiar).pack(fill="x", pady=(10, 0))
 
@@ -69,7 +61,7 @@ class PestanaRomanos(ttk.Frame):
         ).pack(anchor="w", pady=(14, 0))
 
     def _construir_resultado(self):
-        marco = ttk.LabelFrame(self, text="Resultado", style="Seccion.TLabelframe", padding=14)
+        marco = ttk.LabelFrame(self, text="Resultado y procedimiento paso a paso", style="Seccion.TLabelframe", padding=14)
         marco.grid(row=0, column=1, sticky="nsew", padx=(7, 0))
         marco_resultado, self.txt_resultado = crear_area_resultado(marco, alto=20)
         marco_resultado.pack(fill="both", expand=True)
@@ -78,18 +70,14 @@ class PestanaRomanos(ttk.Frame):
         try:
             texto_a = self.ent_a.get()
             texto_b = self.ent_b.get()
-            a = romano_a_entero(texto_a)
-            b = romano_a_entero(texto_b)
-            resultado_romano, resultado_decimal = operar_romanos(texto_a, texto_b, simbolo)
-
-            simbolo_visible = {"*": "×", "/": "÷"}.get(simbolo, simbolo)
+            resultado_romano, resultado_decimal, pasos = operar_romanos_con_pasos(
+                texto_a, texto_b, simbolo
+            )
+            separador = "\n\n" + "─" * 52 + "\n\n"
             salida = (
-                f"A = {texto_a.strip().upper()} = {a}\n"
-                f"B = {texto_b.strip().upper()} = {b}\n\n"
-                f"{texto_a.strip().upper()} {simbolo_visible} {texto_b.strip().upper()} "
-                f"= {resultado_romano}\n\n"
-                f"Resultado romano: {resultado_romano}\n"
-                f"Resultado decimal: {resultado_decimal}"
+                f"RESULTADO ROMANO: {resultado_romano}\n"
+                f"RESULTADO DECIMAL: {resultado_decimal}\n\n"
+                + separador.join(pasos)
             )
             mostrar_texto(self.txt_resultado, salida)
         except ValueError as error:

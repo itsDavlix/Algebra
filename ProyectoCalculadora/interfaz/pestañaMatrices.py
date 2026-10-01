@@ -1,18 +1,22 @@
-"""Pestaña Matrices: suma, resta, producto por escalar y producto de matrices."""
+"""Pestaña Matrices: operaciones matriciales con procedimiento paso a paso."""
 
 import tkinter as tk
 from tkinter import ttk
 
 from nucleo.numeros import convertir_numero, limpiar_numero
 from nucleo.matrices import (
-    leer_matriz, matriz_a_texto, sumar_matrices, restar_matrices,
-    multiplicar_matriz_escalar, multiplicar_matrices, matriz_inversa,
+    leer_matriz, matriz_a_texto, dimensiones, sumar_matrices, restar_matrices,
+    multiplicar_matriz_escalar, multiplicar_matrices, matriz_inversa_con_pasos,
 )
 from interfaz.ayudas import mostrar_texto, mostrar_error, crear_area_resultado, AyudaEmergente
 
 
+def _separar_pasos(pasos):
+    return "\n\n" + ("\n\n" + "─" * 56 + "\n\n").join(pasos)
+
+
 class PestanaMatrices(ttk.Frame):
-    """Agrupa la entrada de matrices A y B, y las operaciones disponibles entre ellas."""
+    """Agrupa la entrada de matrices A y B y explica cada operación realizada."""
 
     def __init__(self, padre):
         super().__init__(padre, padding=16)
@@ -60,7 +64,7 @@ class PestanaMatrices(ttk.Frame):
         ttk.Button(botones, text="Multiplicar matrices (A × B)", command=self._accion_producto).grid(row=1, column=1, padx=4, pady=4, sticky="ew")
         ttk.Button(botones, text="Matriz inversa (A⁻¹)", style="Accion.TButton", command=self._accion_inversa).grid(row=2, column=0, columnspan=2, padx=4, pady=4, sticky="ew")
 
-        ttk.Label(marco, text="Resultado:").pack(anchor="w", pady=(16, 4))
+        ttk.Label(marco, text="Resultado y procedimiento paso a paso:").pack(anchor="w", pady=(16, 4))
         marco_resultado, self.txt_resultado = crear_area_resultado(marco, alto=20)
         marco_resultado.pack(fill="both", expand=True)
 
@@ -68,19 +72,44 @@ class PestanaMatrices(ttk.Frame):
         return leer_matriz(self.txt_a.get("1.0", "end")), leer_matriz(self.txt_b.get("1.0", "end"))
 
     def _accion_suma(self):
-        self._ejecutar(lambda: sumar_matrices(*self._obtener_ab()), "A + B =\n\n")
+        try:
+            a, b = self._obtener_ab()
+            resultado = sumar_matrices(a, b)
+            filas, columnas = dimensiones(a)
+            calculos = []
+            for i in range(filas):
+                for j in range(columnas):
+                    calculos.append(
+                        f"C[{i + 1},{j + 1}] = {limpiar_numero(a[i][j])} + "
+                        f"{limpiar_numero(b[i][j])} = {limpiar_numero(resultado[i][j])}"
+                    )
+            pasos = [
+                f"PASO 1. Verificar dimensiones.\nA y B son de tamaño {filas}×{columnas}, así que se pueden sumar.",
+                "PASO 2. Sumar los elementos que están en la misma posición:\n" + "\n".join(calculos),
+                "PASO 3. Colocar los resultados en la matriz C = A + B.\n\n" + matriz_a_texto(resultado),
+            ]
+            mostrar_texto(self.txt_resultado, "A + B =\n" + matriz_a_texto(resultado) + _separar_pasos(pasos))
+        except ValueError as error:
+            mostrar_error(error)
 
     def _accion_resta(self):
-        self._ejecutar(lambda: restar_matrices(*self._obtener_ab()), "A − B =\n\n")
-
-    def _accion_producto(self):
-        self._ejecutar(lambda: multiplicar_matrices(*self._obtener_ab()), "A × B =\n\n")
-
-    def _accion_inversa(self):
         try:
-            a = leer_matriz(self.txt_a.get("1.0", "end"))
-            resultado = matriz_inversa(a)
-            mostrar_texto(self.txt_resultado, "A⁻¹ =\n\n" + matriz_a_texto(resultado))
+            a, b = self._obtener_ab()
+            resultado = restar_matrices(a, b)
+            filas, columnas = dimensiones(a)
+            calculos = []
+            for i in range(filas):
+                for j in range(columnas):
+                    calculos.append(
+                        f"C[{i + 1},{j + 1}] = {limpiar_numero(a[i][j])} − "
+                        f"{limpiar_numero(b[i][j])} = {limpiar_numero(resultado[i][j])}"
+                    )
+            pasos = [
+                f"PASO 1. Verificar dimensiones.\nA y B son de tamaño {filas}×{columnas}, así que se pueden restar.",
+                "PASO 2. Restar los elementos que están en la misma posición:\n" + "\n".join(calculos),
+                "PASO 3. Colocar los resultados en C = A − B.\n\n" + matriz_a_texto(resultado),
+            ]
+            mostrar_texto(self.txt_resultado, "A − B =\n" + matriz_a_texto(resultado) + _separar_pasos(pasos))
         except ValueError as error:
             mostrar_error(error)
 
@@ -89,14 +118,59 @@ class PestanaMatrices(ttk.Frame):
             a = leer_matriz(self.txt_a.get("1.0", "end"))
             escalar = convertir_numero(self.ent_escalar.get())
             resultado = multiplicar_matriz_escalar(a, escalar)
-            mostrar_texto(self.txt_resultado, f"{limpiar_numero(escalar)} · A =\n\n" + matriz_a_texto(resultado))
+            filas, columnas = dimensiones(a)
+            calculos = []
+            for i in range(filas):
+                for j in range(columnas):
+                    calculos.append(
+                        f"C[{i + 1},{j + 1}] = {limpiar_numero(escalar)} × "
+                        f"{limpiar_numero(a[i][j])} = {limpiar_numero(resultado[i][j])}"
+                    )
+            pasos = [
+                f"PASO 1. Tomar el escalar k = {limpiar_numero(escalar)}.",
+                "PASO 2. Multiplicar k por cada entrada de A:\n" + "\n".join(calculos),
+                "PASO 3. Formar la matriz resultante k·A.\n\n" + matriz_a_texto(resultado),
+            ]
+            mostrar_texto(
+                self.txt_resultado,
+                f"{limpiar_numero(escalar)} · A =\n{matriz_a_texto(resultado)}" + _separar_pasos(pasos),
+            )
         except ValueError as error:
             mostrar_error(error)
 
-    def _ejecutar(self, operacion, etiqueta):
+    def _accion_producto(self):
         try:
-            resultado = operacion()
-            mostrar_texto(self.txt_resultado, etiqueta + matriz_a_texto(resultado))
+            a, b = self._obtener_ab()
+            resultado = multiplicar_matrices(a, b)
+            filas_a, columnas_a = dimensiones(a)
+            filas_b, columnas_b = dimensiones(b)
+            calculos = []
+            for i in range(filas_a):
+                for j in range(columnas_b):
+                    productos = [a[i][k] * b[k][j] for k in range(columnas_a)]
+                    expresion = " + ".join(
+                        f"({limpiar_numero(a[i][k])}×{limpiar_numero(b[k][j])})"
+                        for k in range(columnas_a)
+                    )
+                    suma = " + ".join(limpiar_numero(x) for x in productos)
+                    calculos.append(
+                        f"C[{i + 1},{j + 1}] = {expresion} = {suma} = {limpiar_numero(resultado[i][j])}"
+                    )
+            pasos = [
+                f"PASO 1. Verificar compatibilidad.\nA es {filas_a}×{columnas_a} y B es {filas_b}×{columnas_b}. "
+                f"Como columnas(A) = filas(B) = {columnas_a}, el producto existe y será {filas_a}×{columnas_b}.",
+                "PASO 2. Multiplicar cada fila de A por cada columna de B y sumar los productos:\n" + "\n".join(calculos),
+                "PASO 3. Formar C = A×B con los valores calculados.\n\n" + matriz_a_texto(resultado),
+            ]
+            mostrar_texto(self.txt_resultado, "A × B =\n" + matriz_a_texto(resultado) + _separar_pasos(pasos))
+        except ValueError as error:
+            mostrar_error(error)
+
+    def _accion_inversa(self):
+        try:
+            a = leer_matriz(self.txt_a.get("1.0", "end"))
+            resultado, pasos = matriz_inversa_con_pasos(a)
+            mostrar_texto(self.txt_resultado, "A⁻¹ =\n" + matriz_a_texto(resultado) + _separar_pasos(pasos))
         except ValueError as error:
             mostrar_error(error)
 

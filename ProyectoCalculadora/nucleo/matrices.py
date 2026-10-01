@@ -32,6 +32,16 @@ def matriz_a_texto(matriz):
     return "\n".join("[ " + "   ".join(limpiar_numero(x) for x in fila) + " ]" for fila in matriz)
 
 
+def matriz_ampliada_a_texto(matriz, separacion):
+    """Formatea una matriz aumentada marcando la separación con una barra vertical."""
+    lineas = []
+    for fila in matriz:
+        izquierda = "   ".join(limpiar_numero(x) for x in fila[:separacion])
+        derecha = "   ".join(limpiar_numero(x) for x in fila[separacion:])
+        lineas.append(f"[ {izquierda}   |   {derecha} ]")
+    return "\n".join(lineas)
+
+
 def dimensiones(matriz):
     """Retorna (cantidad de filas, cantidad de columnas) de una matriz."""
     return len(matriz), len(matriz[0])
@@ -88,13 +98,8 @@ def matrices_aproximadamente_iguales(a, b):
     )
 
 
-def matriz_inversa(matriz):
-    """
-    Calcula la matriz inversa mediante eliminación Gauss-Jordan.
-
-    Se construye la matriz aumentada [A | I] y se transforma A en la
-    identidad. La parte derecha resultante corresponde a A^(-1).
-    """
+def matriz_inversa_con_pasos(matriz):
+    """Calcula A⁻¹ por Gauss-Jordan y devuelve también el procedimiento explicado."""
     filas, columnas = dimensiones(matriz)
     if filas != columnas:
         raise ValueError("La matriz debe ser cuadrada para poder calcular su inversa.")
@@ -105,17 +110,39 @@ def matriz_inversa(matriz):
         identidad = [1.0 if i == j else 0.0 for j in range(n)]
         aumentada.append([float(valor) for valor in matriz[i]] + identidad)
 
+    pasos = [
+        "PASO 1. Verificar que A sea cuadrada.\n"
+        f"A tiene {filas} filas y {columnas} columnas, por lo tanto sí es cuadrada.",
+        "PASO 2. Formar la matriz aumentada [A | I].\n\n"
+        + matriz_ampliada_a_texto(aumentada, n),
+    ]
+    numero_paso = 3
+
     for columna in range(n):
-        # Pivoteo parcial: escoger el mayor valor absoluto disponible mejora
-        # la estabilidad numérica del procedimiento.
         fila_pivote = max(range(columna, n), key=lambda i: abs(aumentada[i][columna]))
         if abs(aumentada[fila_pivote][columna]) <= 1e-10:
-            raise ValueError("La matriz no tiene inversa porque es singular (determinante igual a 0).")
+            raise ValueError(
+                "La matriz no tiene inversa porque es singular (determinante igual a 0)."
+            )
 
-        aumentada[columna], aumentada[fila_pivote] = aumentada[fila_pivote], aumentada[columna]
+        if fila_pivote != columna:
+            aumentada[columna], aumentada[fila_pivote] = aumentada[fila_pivote], aumentada[columna]
+            pasos.append(
+                f"PASO {numero_paso}. Intercambiar F{columna + 1} ↔ F{fila_pivote + 1} "
+                "para colocar un pivote no nulo.\n\n"
+                + matriz_ampliada_a_texto(aumentada, n)
+            )
+            numero_paso += 1
 
         pivote = aumentada[columna][columna]
-        aumentada[columna] = [valor / pivote for valor in aumentada[columna]]
+        if abs(pivote - 1.0) > 1e-10:
+            aumentada[columna] = [valor / pivote for valor in aumentada[columna]]
+            pasos.append(
+                f"PASO {numero_paso}. Convertir el pivote de la columna {columna + 1} en 1:\n"
+                f"F{columna + 1} ← F{columna + 1} ÷ ({limpiar_numero(pivote)}).\n\n"
+                + matriz_ampliada_a_texto(aumentada, n)
+            )
+            numero_paso += 1
 
         for i in range(n):
             if i == columna:
@@ -126,12 +153,29 @@ def matriz_inversa(matriz):
                     aumentada[i][j] - factor * aumentada[columna][j]
                     for j in range(2 * n)
                 ]
+                signo = "−" if factor >= 0 else "+"
+                magnitud = limpiar_numero(abs(factor))
+                pasos.append(
+                    f"PASO {numero_paso}. Hacer 0 la entrada de F{i + 1}, columna {columna + 1}:\n"
+                    f"F{i + 1} ← F{i + 1} {signo} ({magnitud})F{columna + 1}.\n\n"
+                    + matriz_ampliada_a_texto(aumentada, n)
+                )
+                numero_paso += 1
 
     inversa = [fila[n:] for fila in aumentada]
-
-    # Elimina residuos muy pequeños producidos por operaciones con float.
-    return [
+    inversa = [
         [0.0 if abs(valor) <= 1e-10 else valor for valor in fila]
         for fila in inversa
     ]
 
+    pasos.append(
+        f"PASO {numero_paso}. La parte izquierda ya es I; por eso la parte derecha es A⁻¹.\n\n"
+        "A⁻¹ =\n" + matriz_a_texto(inversa)
+    )
+    return inversa, pasos
+
+
+def matriz_inversa(matriz):
+    """Calcula la matriz inversa mediante eliminación Gauss-Jordan."""
+    inversa, _ = matriz_inversa_con_pasos(matriz)
+    return inversa

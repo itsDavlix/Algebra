@@ -1,23 +1,19 @@
 """Módulo de sistemas lineales: eliminación Gauss-Jordan y combinación lineal."""
 
-from nucleo.numeros import EPSILON
-from nucleo.matrices import dimensiones
+from nucleo.numeros import EPSILON, limpiar_numero
+from nucleo.matrices import dimensiones, matriz_ampliada_a_texto, matriz_a_texto
 
 
-def resolver_sistema_gauss_jordan(a, b):
-    """
-    Resuelve la ecuación matricial A·X = B mediante Gauss-Jordan.
+class ErrorSistemaIncompatible(ValueError):
+    """Error que conserva el procedimiento realizado antes de detectar incompatibilidad."""
 
-    Procedimiento algebraico:
-    1. Se arma la matriz aumentada [A | B].
-    2. Se busca, columna por columna, una fila con pivote no nulo.
-    3. Se normaliza esa fila (pivote = 1) y se anula el resto de la columna.
-    4. Una fila del tipo 0 0 ... 0 | valor_no_cero indica un sistema incompatible.
-    5. Las columnas sin pivote corresponden a variables libres, fijadas en 0
-       para entregar una solución particular.
+    def __init__(self, mensaje, pasos=None):
+        super().__init__(mensaje)
+        self.pasos = pasos or []
 
-    Retorna: (solución X, tipo de solución "unica"/"infinitas", columnas pivote).
-    """
+
+def resolver_sistema_gauss_jordan_con_pasos(a, b):
+    """Resuelve A·X=B por Gauss-Jordan y retorna también el procedimiento completo."""
     filas_a, columnas_a = dimensiones(a)
     filas_b, columnas_b = dimensiones(b)
     if filas_a != filas_b:
@@ -27,6 +23,11 @@ def resolver_sistema_gauss_jordan(a, b):
     ancho = columnas_a + columnas_b
     fila_pivote = 0
     columnas_pivote = []
+    pasos = [
+        "PASO 1. Formar la matriz aumentada [A | B].\n\n"
+        + matriz_ampliada_a_texto(aumentada, columnas_a)
+    ]
+    numero_paso = 2
 
     for columna in range(columnas_a):
         mejor_fila, mejor_valor = None, 0.0
@@ -36,12 +37,30 @@ def resolver_sistema_gauss_jordan(a, b):
                 mejor_valor, mejor_fila = valor, i
 
         if mejor_fila is None:
-            continue  # Columna sin pivote: variable libre.
+            pasos.append(
+                f"PASO {numero_paso}. En la columna {columna + 1} no hay pivote no nulo; "
+                "esa variable queda libre."
+            )
+            numero_paso += 1
+            continue
 
-        aumentada[fila_pivote], aumentada[mejor_fila] = aumentada[mejor_fila], aumentada[fila_pivote]
+        if mejor_fila != fila_pivote:
+            aumentada[fila_pivote], aumentada[mejor_fila] = aumentada[mejor_fila], aumentada[fila_pivote]
+            pasos.append(
+                f"PASO {numero_paso}. Intercambiar F{fila_pivote + 1} ↔ F{mejor_fila + 1}.\n\n"
+                + matriz_ampliada_a_texto(aumentada, columnas_a)
+            )
+            numero_paso += 1
 
         pivote = aumentada[fila_pivote][columna]
-        aumentada[fila_pivote] = [valor / pivote for valor in aumentada[fila_pivote]]
+        if abs(pivote - 1.0) > EPSILON:
+            aumentada[fila_pivote] = [valor / pivote for valor in aumentada[fila_pivote]]
+            pasos.append(
+                f"PASO {numero_paso}. Normalizar F{fila_pivote + 1}:\n"
+                f"F{fila_pivote + 1} ← F{fila_pivote + 1} ÷ ({limpiar_numero(pivote)}).\n\n"
+                + matriz_ampliada_a_texto(aumentada, columnas_a)
+            )
+            numero_paso += 1
 
         for i in range(filas_a):
             if i == fila_pivote:
@@ -51,6 +70,14 @@ def resolver_sistema_gauss_jordan(a, b):
                 aumentada[i] = [
                     aumentada[i][j] - factor * aumentada[fila_pivote][j] for j in range(ancho)
                 ]
+                signo = "−" if factor >= 0 else "+"
+                magnitud = limpiar_numero(abs(factor))
+                pasos.append(
+                    f"PASO {numero_paso}. Eliminar la entrada de F{i + 1}, columna {columna + 1}:\n"
+                    f"F{i + 1} ← F{i + 1} {signo} ({magnitud})F{fila_pivote + 1}.\n\n"
+                    + matriz_ampliada_a_texto(aumentada, columnas_a)
+                )
+                numero_paso += 1
 
         columnas_pivote.append(columna)
         fila_pivote += 1
@@ -60,8 +87,13 @@ def resolver_sistema_gauss_jordan(a, b):
     for fila in aumentada:
         if all(abs(valor) <= EPSILON for valor in fila[:columnas_a]):
             if any(abs(valor) > EPSILON for valor in fila[columnas_a:]):
-                raise ValueError(
-                    "No existe una solución: los datos de A y B hacen que el sistema sea incompatible."
+                pasos.append(
+                    f"PASO {numero_paso}. Aparece una fila con 0 en todos los coeficientes "
+                    "pero un término independiente distinto de 0. El sistema es incompatible."
+                )
+                raise ErrorSistemaIncompatible(
+                    "No existe una solución: los datos de A y B hacen que el sistema sea incompatible.",
+                    pasos,
                 )
 
     solucion = [[0.0] * columnas_b for _ in range(columnas_a)]
@@ -70,16 +102,26 @@ def resolver_sistema_gauss_jordan(a, b):
             solucion[columna_variable][j] = aumentada[indice_fila][columnas_a + j]
 
     tipo = "unica" if len(columnas_pivote) == columnas_a else "infinitas"
+    detalle_tipo = (
+        "Cada variable tiene pivote, así que la solución es única."
+        if tipo == "unica"
+        else "Hay columnas sin pivote; existen infinitas soluciones. Para mostrar una solución particular, las variables libres se fijan en 0."
+    )
+    pasos.append(
+        f"PASO {numero_paso}. Leer la solución de la matriz reducida.\n"
+        f"{detalle_tipo}\n\nX =\n{matriz_a_texto(solucion)}"
+    )
+    return solucion, tipo, columnas_pivote, pasos
+
+
+def resolver_sistema_gauss_jordan(a, b):
+    """Resuelve A·X=B por Gauss-Jordan conservando la API original."""
+    solucion, tipo, columnas_pivote, _ = resolver_sistema_gauss_jordan_con_pasos(a, b)
     return solucion, tipo, columnas_pivote
 
 
-def verificar_combinacion_lineal(generadores, objetivo):
-    """
-    Determina si 'objetivo' es combinación lineal de 'generadores'.
-
-    Se arma A colocando cada generador como columna y se resuelve A·c = objetivo;
-    c son los coeficientes de la combinación buscada.
-    """
+def verificar_combinacion_lineal_con_pasos(generadores, objetivo):
+    """Determina si el objetivo es combinación lineal y explica el sistema planteado."""
     if not generadores:
         raise ValueError("Agrega al menos un vector en la lista de vectores generadores.")
 
@@ -94,9 +136,44 @@ def verificar_combinacion_lineal(generadores, objetivo):
     a = [[vector[i] for vector in generadores] for i in range(dimension)]
     b = [[valor] for valor in objetivo]
 
-    try:
-        solucion, tipo, _ = resolver_sistema_gauss_jordan(a, b)
-    except ValueError:
-        return False, None, None
+    ecuacion = " + ".join(f"c{i + 1}·v{i + 1}" for i in range(len(generadores)))
+    pasos_previos = [
+        "PASO 1. Plantear la combinación lineal buscada:\n"
+        f"{ecuacion} = vector objetivo.",
+        "PASO 2. Colocar los vectores generadores como columnas de A y resolver A·c = b.\n\n"
+        f"A =\n{matriz_a_texto(a)}\n\n"
+        f"b =\n{matriz_a_texto(b)}",
+    ]
 
-    return True, [fila[0] for fila in solucion], tipo
+    try:
+        solucion, tipo, _, pasos_gauss = resolver_sistema_gauss_jordan_con_pasos(a, b)
+    except ErrorSistemaIncompatible as error:
+        pasos = pasos_previos + [
+            paso.replace("PASO ", "GAUSS-JORDAN · PASO ", 1) for paso in error.pasos
+        ]
+        pasos.append(
+            "CONCLUSIÓN. El sistema para los coeficientes es incompatible; por lo tanto, "
+            "el vector objetivo NO es combinación lineal de los generadores."
+        )
+        return False, None, None, pasos
+
+    coeficientes = [fila[0] for fila in solucion]
+    pasos = pasos_previos + [
+        paso.replace("PASO ", "GAUSS-JORDAN · PASO ", 1) for paso in pasos_gauss
+    ]
+    expresion = " + ".join(
+        f"({limpiar_numero(c)})v{i + 1}" for i, c in enumerate(coeficientes)
+    )
+    pasos.append(
+        "CONCLUSIÓN. Se encontraron coeficientes que satisfacen la ecuación:\n"
+        f"{expresion} = vector objetivo."
+    )
+    return True, coeficientes, tipo, pasos
+
+
+def verificar_combinacion_lineal(generadores, objetivo):
+    """Versión compatible con la API original, sin devolver el texto del procedimiento."""
+    es_combinacion, coeficientes, tipo, _ = verificar_combinacion_lineal_con_pasos(
+        generadores, objetivo
+    )
+    return es_combinacion, coeficientes, tipo
