@@ -6,7 +6,7 @@ from tkinter import ttk
 from nucleo.numeros import convertir_numero, limpiar_numero
 from nucleo.matrices import (
     leer_matriz, matriz_a_texto, sumar_matrices, restar_matrices,
-    multiplicar_matriz_escalar, multiplicar_matrices,
+    multiplicar_matriz_escalar, multiplicar_matrices, matriz_inversa,
 )
 from interfaz.ayudas import mostrar_texto, mostrar_error, crear_area_resultado, AyudaEmergente
 
@@ -58,6 +58,7 @@ class PestanaMatrices(ttk.Frame):
         ttk.Button(botones, text="Restar (A − B)", command=self._accion_resta).grid(row=0, column=1, padx=4, pady=4, sticky="ew")
         ttk.Button(botones, text="Multiplicar por escalar (k·A)", command=self._accion_escalar).grid(row=1, column=0, padx=4, pady=4, sticky="ew")
         ttk.Button(botones, text="Multiplicar matrices (A × B)", command=self._accion_producto).grid(row=1, column=1, padx=4, pady=4, sticky="ew")
+        ttk.Button(botones, text="Matriz inversa (A⁻¹)", style="Accion.TButton", command=self._accion_inversa).grid(row=2, column=0, columnspan=2, padx=4, pady=4, sticky="ew")
 
         ttk.Label(marco, text="Resultado:").pack(anchor="w", pady=(16, 4))
         marco_resultado, self.txt_resultado = crear_area_resultado(marco, alto=20)
@@ -74,6 +75,14 @@ class PestanaMatrices(ttk.Frame):
 
     def _accion_producto(self):
         self._ejecutar(lambda: multiplicar_matrices(*self._obtener_ab()), "A × B =\n\n")
+
+    def _accion_inversa(self):
+        try:
+            a = leer_matriz(self.txt_a.get("1.0", "end"))
+            resultado = matriz_inversa(a)
+            mostrar_texto(self.txt_resultado, "A⁻¹ =\n\n" + matriz_a_texto(resultado))
+        except ValueError as error:
+            mostrar_error(error)
 
     def _accion_escalar(self):
         try:

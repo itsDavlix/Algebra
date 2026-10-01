@@ -99,4 +99,4 @@ def verificar_combinacion_lineal(generadores, objetivo):
     except ValueError:
         return False, None, None
 
-    return True, [fila[0] for fila in solucion], tipon
+    return True, [fila[0] for fila in solucion], tipo

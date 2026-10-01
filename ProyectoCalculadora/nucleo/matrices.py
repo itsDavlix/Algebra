@@ -86,3 +86,52 @@ def matrices_aproximadamente_iguales(a, b):
     return all(
         abs(a[i][j] - b[i][j]) <= 1e-8 for i in range(filas) for j in range(columnas)
     )
+
+
+def matriz_inversa(matriz):
+    """
+    Calcula la matriz inversa mediante eliminación Gauss-Jordan.
+
+    Se construye la matriz aumentada [A | I] y se transforma A en la
+    identidad. La parte derecha resultante corresponde a A^(-1).
+    """
+    filas, columnas = dimensiones(matriz)
+    if filas != columnas:
+        raise ValueError("La matriz debe ser cuadrada para poder calcular su inversa.")
+
+    n = filas
+    aumentada = []
+    for i in range(n):
+        identidad = [1.0 if i == j else 0.0 for j in range(n)]
+        aumentada.append([float(valor) for valor in matriz[i]] + identidad)
+
+    for columna in range(n):
+        # Pivoteo parcial: escoger el mayor valor absoluto disponible mejora
+        # la estabilidad numérica del procedimiento.
+        fila_pivote = max(range(columna, n), key=lambda i: abs(aumentada[i][columna]))
+        if abs(aumentada[fila_pivote][columna]) <= 1e-10:
+            raise ValueError("La matriz no tiene inversa porque es singular (determinante igual a 0).")
+
+        aumentada[columna], aumentada[fila_pivote] = aumentada[fila_pivote], aumentada[columna]
+
+        pivote = aumentada[columna][columna]
+        aumentada[columna] = [valor / pivote for valor in aumentada[columna]]
+
+        for i in range(n):
+            if i == columna:
+                continue
+            factor = aumentada[i][columna]
+            if abs(factor) > 1e-10:
+                aumentada[i] = [
+                    aumentada[i][j] - factor * aumentada[columna][j]
+                    for j in range(2 * n)
+                ]
+
+    inversa = [fila[n:] for fila in aumentada]
+
+    # Elimina residuos muy pequeños producidos por operaciones con float.
+    return [
+        [0.0 if abs(valor) <= 1e-10 else valor for valor in fila]
+        for fila in inversa
+    ]
+

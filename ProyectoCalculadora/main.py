@@ -6,6 +6,7 @@ from interfaz.pestañaInicio import PestanaInicio
 from interfaz.pestañaVectores import PestanaVectores
 from interfaz.pestañaMatrices import PestanaMatrices
 from interfaz.pestañaEcuaciones import PestanaEcuaciones
+from interfaz.pestañaRomanos import PestanaRomanos
 from interfaz.programaAnterior import PestanaProgramaAnterior
 
 """PROGRAMA VECTORES - Calculadora de Álgebra Lineal
@@ -18,8 +19,9 @@ JULIAN ALONSO TORREZ VALDIVIA
 Características:
 - Operaciones con vectores de dimensión n.
 - Verificación de combinación lineal.
-- Operaciones básicas con matrices.
+- Operaciones con matrices, incluyendo matriz inversa.
 - Resolución y evaluación de ecuaciones matriciales A·X = B.
+- Operaciones con números romanos.
 - Opción para ejecutar un programa .py elaborado anteriormente."""
 
 
@@ -41,7 +43,7 @@ class CalculadoraAlgebraLineal(tk.Tk):
         ttk.Label(contenedor, text="Calculadora de Álgebra Lineal", style="Titulo.TLabel").pack(anchor="w")
         ttk.Label(
             contenedor,
-            text="Selecciona una pestaña para trabajar con vectores, matrices o ecuaciones.",
+            text="Selecciona una pestaña para trabajar con vectores, matrices, ecuaciones o números romanos.",
             style="Subtitulo.TLabel",
         ).pack(anchor="w", pady=(0, 12))
 
@@ -52,6 +54,7 @@ class CalculadoraAlgebraLineal(tk.Tk):
         notebook.add(PestanaVectores(notebook), text="Vectores")
         notebook.add(PestanaMatrices(notebook), text="Matrices")
         notebook.add(PestanaEcuaciones(notebook), text="Ecuaciones A·X = B")
+        notebook.add(PestanaRomanos(notebook), text="Números romanos")
         notebook.add(PestanaProgramaAnterior(notebook), text="Programa anterior")
 
 
