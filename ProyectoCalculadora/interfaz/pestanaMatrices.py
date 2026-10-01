@@ -69,7 +69,7 @@ class PestanaMatrices(ttk.Frame):
         marco_resultado.pack(fill="both", expand=True)
 
     def _obtener_ab(self):
-        return leer_matriz(self.txt_a.get("1.0", "end")), leer_matriz(self.txt_b.get("1.0", "end"))
+        return leer_matriz(self.txt_a.get("1.0", "end"), "matriz A"), leer_matriz(self.txt_b.get("1.0", "end"), "matriz B")
 
     def _accion_suma(self):
         try:
@@ -115,7 +115,7 @@ class PestanaMatrices(ttk.Frame):
 
     def _accion_escalar(self):
         try:
-            a = leer_matriz(self.txt_a.get("1.0", "end"))
+            a = leer_matriz(self.txt_a.get("1.0", "end"), "matriz A")
             escalar = convertir_numero(self.ent_escalar.get())
             resultado = multiplicar_matriz_escalar(a, escalar)
             filas, columnas = dimensiones(a)
@@ -168,7 +168,7 @@ class PestanaMatrices(ttk.Frame):
 
     def _accion_inversa(self):
         try:
-            a = leer_matriz(self.txt_a.get("1.0", "end"))
+            a = leer_matriz(self.txt_a.get("1.0", "end"), "matriz A")
             resultado, pasos = matriz_inversa_con_pasos(a)
             mostrar_texto(self.txt_resultado, "A⁻¹ =\n" + matriz_a_texto(resultado) + _separar_pasos(pasos))
         except ValueError as error:

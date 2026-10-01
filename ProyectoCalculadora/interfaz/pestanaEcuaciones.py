@@ -59,8 +59,8 @@ class PestanaEcuaciones(ttk.Frame):
 
     def _accion_resolver(self):
         try:
-            a = leer_matriz(self.txt_a.get("1.0", "end"))
-            b = leer_matriz(self.txt_b.get("1.0", "end"))
+            a = leer_matriz(self.txt_a.get("1.0", "end"), "matriz A")
+            b = leer_matriz(self.txt_b.get("1.0", "end"), "matriz B")
             solucion, tipo, pivotes, pasos = resolver_sistema_gauss_jordan_con_pasos(a, b)
 
             salida = "SOLUCIÓN X:\n" + matriz_a_texto(solucion)
@@ -83,9 +83,9 @@ class PestanaEcuaciones(ttk.Frame):
 
     def _accion_evaluar(self):
         try:
-            a = leer_matriz(self.txt_a.get("1.0", "end"))
-            b = leer_matriz(self.txt_b.get("1.0", "end"))
-            x = leer_matriz(self.txt_x.get("1.0", "end"))
+            a = leer_matriz(self.txt_a.get("1.0", "end"), "matriz A")
+            b = leer_matriz(self.txt_b.get("1.0", "end"), "matriz B")
+            x = leer_matriz(self.txt_x.get("1.0", "end"), "matriz X")
 
             producto = multiplicar_matrices(a, x)
             cumple = matrices_aproximadamente_iguales(producto, b)

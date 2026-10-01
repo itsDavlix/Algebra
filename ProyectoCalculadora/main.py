@@ -2,11 +2,11 @@ import tkinter as tk
 from tkinter import ttk
 
 from interfaz.estilos import configurar_estilo
-from interfaz.pestañaInicio import PestanaInicio
-from interfaz.pestañaVectores import PestanaVectores
-from interfaz.pestañaMatrices import PestanaMatrices
-from interfaz.pestañaEcuaciones import PestanaEcuaciones
-from interfaz.pestañaRomanos import PestanaRomanos
+from interfaz.pestanaInicio import PestanaInicio
+from interfaz.pestanaVectores import PestanaVectores
+from interfaz.pestanaMatrices import PestanaMatrices
+from interfaz.pestanaEcuaciones import PestanaEcuaciones
+from interfaz.pestanaRomanos import PestanaRomanos
 from interfaz.programaAnterior import PestanaProgramaAnterior
 
 """PROGRAMA VECTORES - Calculadora de Álgebra Lineal

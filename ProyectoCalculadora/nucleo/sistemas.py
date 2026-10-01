@@ -1,6 +1,6 @@
 """Módulo de sistemas lineales: eliminación Gauss-Jordan y combinación lineal."""
 
-from nucleo.numeros import EPSILON, limpiar_numero
+from nucleo.numeros import EPSILON, limpiar_numero, asegurar_finito
 from nucleo.matrices import dimensiones, matriz_ampliada_a_texto, matriz_a_texto
 
 
@@ -19,7 +19,11 @@ def resolver_sistema_gauss_jordan_con_pasos(a, b):
     if filas_a != filas_b:
         raise ValueError("Para resolver A · X = B, A y B deben tener la misma cantidad de filas.")
 
-    aumentada = [list(map(float, a[i])) + list(map(float, b[i])) for i in range(filas_a)]
+    aumentada = [
+        [asegurar_finito(valor, "Coeficiente del sistema") for valor in a[i]]
+        + [asegurar_finito(valor, "Término independiente") for valor in b[i]]
+        for i in range(filas_a)
+    ]
     ancho = columnas_a + columnas_b
     fila_pivote = 0
     columnas_pivote = []
@@ -54,7 +58,10 @@ def resolver_sistema_gauss_jordan_con_pasos(a, b):
 
         pivote = aumentada[fila_pivote][columna]
         if abs(pivote - 1.0) > EPSILON:
-            aumentada[fila_pivote] = [valor / pivote for valor in aumentada[fila_pivote]]
+            aumentada[fila_pivote] = [
+                asegurar_finito(valor / pivote, "Valor durante Gauss-Jordan")
+                for valor in aumentada[fila_pivote]
+            ]
             pasos.append(
                 f"PASO {numero_paso}. Normalizar F{fila_pivote + 1}:\n"
                 f"F{fila_pivote + 1} ← F{fila_pivote + 1} ÷ ({limpiar_numero(pivote)}).\n\n"
@@ -67,9 +74,19 @@ def resolver_sistema_gauss_jordan_con_pasos(a, b):
                 continue
             factor = aumentada[i][columna]
             if abs(factor) > EPSILON:
-                aumentada[i] = [
-                    aumentada[i][j] - factor * aumentada[fila_pivote][j] for j in range(ancho)
-                ]
+                nueva_fila = []
+                for j in range(ancho):
+                    producto = asegurar_finito(
+                        factor * aumentada[fila_pivote][j],
+                        "Producto durante Gauss-Jordan",
+                    )
+                    nueva_fila.append(
+                        asegurar_finito(
+                            aumentada[i][j] - producto,
+                            "Valor durante Gauss-Jordan",
+                        )
+                    )
+                aumentada[i] = nueva_fila
                 signo = "−" if factor >= 0 else "+"
                 magnitud = limpiar_numero(abs(factor))
                 pasos.append(

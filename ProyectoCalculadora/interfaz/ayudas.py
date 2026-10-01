@@ -4,9 +4,15 @@ from tkinter import ttk, messagebox
 
 
 def mostrar_texto(caja, texto):
-    """Reemplaza el contenido de un widget Text por el texto dado."""
+    """Reemplaza de forma segura el contenido de un Text usado como salida."""
+    estado_anterior = str(caja.cget("state"))
+    if estado_anterior == "disabled":
+        caja.configure(state="normal")
     caja.delete("1.0", "end")
     caja.insert("1.0", texto)
+    caja.see("1.0")
+    if estado_anterior == "disabled":
+        caja.configure(state="disabled")
 
 
 def mostrar_error(error):
@@ -20,7 +26,7 @@ def crear_area_resultado(padre, alto=10, fuente=("Consolas", 11)):
     marco.columnconfigure(0, weight=1)
     marco.rowconfigure(0, weight=1)
 
-    texto = tk.Text(marco, height=alto, wrap="word", font=fuente)
+    texto = tk.Text(marco, height=alto, wrap="word", font=fuente, state="disabled")
     barra = ttk.Scrollbar(marco, orient="vertical", command=texto.yview)
     texto.configure(yscrollcommand=barra.set)
     texto.grid(row=0, column=0, sticky="nsew")

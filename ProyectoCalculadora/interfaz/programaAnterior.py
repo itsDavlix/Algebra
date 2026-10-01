@@ -1,5 +1,6 @@
 """Pestaña Programa anterior: permite ejecutar un archivo .py elaborado previamente."""
 
+import os
 import subprocess
 import sys
 from tkinter import ttk, filedialog, messagebox
@@ -33,7 +34,7 @@ class PestanaProgramaAnterior(ttk.Frame):
     def _accion_ejecutar(self):
         ruta = filedialog.askopenfilename(
             title="Selecciona el programa anterior",
-            filetypes=[("Archivos Python", "*.py"), ("Todos los archivos", "*.*")],
+            filetypes=[("Archivos Python", "*.py")],
         )
         if not ruta:
             return

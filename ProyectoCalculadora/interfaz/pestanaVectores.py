@@ -62,8 +62,8 @@ class PestanaVectores(ttk.Frame):
 
     def _accion_suma(self):
         try:
-            v1 = leer_vector(self.ent_v1.get())
-            v2 = leer_vector(self.ent_v2.get())
+            v1 = leer_vector(self.ent_v1.get(), "V1")
+            v2 = leer_vector(self.ent_v2.get(), "V2")
             resultado = sumar_vectores(v1, v2)
             operaciones = [
                 f"Componente {i + 1}: {limpiar_numero(a)} + {limpiar_numero(b)} = {limpiar_numero(r)}"
@@ -80,8 +80,8 @@ class PestanaVectores(ttk.Frame):
 
     def _accion_resta(self):
         try:
-            v1 = leer_vector(self.ent_v1.get())
-            v2 = leer_vector(self.ent_v2.get())
+            v1 = leer_vector(self.ent_v1.get(), "V1")
+            v2 = leer_vector(self.ent_v2.get(), "V2")
             resultado = restar_vectores(v1, v2)
             operaciones = [
                 f"Componente {i + 1}: {limpiar_numero(a)} − {limpiar_numero(b)} = {limpiar_numero(r)}"
@@ -98,7 +98,7 @@ class PestanaVectores(ttk.Frame):
 
     def _accion_escalar(self):
         try:
-            v1 = leer_vector(self.ent_v1.get())
+            v1 = leer_vector(self.ent_v1.get(), "V1")
             escalar = convertir_numero(self.ent_escalar.get())
             resultado = multiplicar_vector_escalar(v1, escalar)
             operaciones = [
@@ -149,8 +149,8 @@ class PestanaVectores(ttk.Frame):
     def _accion_combinacion_lineal(self):
         try:
             lineas = self.txt_generadores.get("1.0", "end").strip().splitlines()
-            generadores = [leer_vector(linea) for linea in lineas if linea.strip()]
-            objetivo = leer_vector(self.ent_objetivo.get())
+            generadores = [leer_vector(linea, f"vector generador {i}") for i, linea in enumerate(lineas, 1) if linea.strip()]
+            objetivo = leer_vector(self.ent_objetivo.get(), "vector objetivo")
 
             es_combinacion, coeficientes, tipo, pasos = verificar_combinacion_lineal_con_pasos(
                 generadores, objetivo
