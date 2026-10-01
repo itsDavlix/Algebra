@@ -3,7 +3,8 @@
 import tkinter as tk
 from tkinter import ttk
 
-from nucleo.matrices import leer_matriz, matriz_a_texto, multiplicar_matrices, matrices_aproximadamente_iguales, dimensiones
+from nucleo.matrices import leer_matriz, matriz_a_texto, multiplicar_matrices, dimensiones
+from nucleo.comprobaciones import matrices_aproximadamente_iguales
 from nucleo.numeros import limpiar_numero
 from nucleo.sistemas import resolver_sistema_gauss_jordan_con_pasos, ErrorSistemaIncompatible
 from interfaz.ayudas import mostrar_texto, mostrar_error, crear_area_resultado, AyudaEmergente
@@ -70,6 +71,15 @@ class PestanaEcuaciones(ttk.Frame):
                 else "\n\nTipo de solución: infinitas soluciones (variables libres = 0 en la solución mostrada)."
             )
             salida += "\nColumnas con pivote: " + (", ".join(str(i + 1) for i in pivotes) or "ninguna")
+
+            producto = multiplicar_matrices(a, solucion)
+            comprobado = matrices_aproximadamente_iguales(producto, b)
+            pasos.append(
+                "COMPROBACIÓN AUTOMÁTICA. Sustituir la solución X en A·X debe producir B.\n\n"
+                "A·X =\n" + matriz_a_texto(producto)
+                + "\n\nB =\n" + matriz_a_texto(b)
+                + ("\n\n✓ La solución comprobada satisface A·X = B." if comprobado else "\n\n✗ La solución no coincide con B.")
+            )
             salida += _bloque(pasos)
             mostrar_texto(self.txt_resultado, salida)
 

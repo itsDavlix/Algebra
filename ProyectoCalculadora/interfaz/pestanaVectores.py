@@ -3,11 +3,12 @@
 import tkinter as tk
 from tkinter import ttk
 
-from nucleo.numeros import convertir_numero, limpiar_numero
+from nucleo.numeros import convertir_numero, limpiar_numero, asegurar_finito, EPSILON
 from nucleo.vectores import (
     leer_vector, vector_a_texto, sumar_vectores, restar_vectores, multiplicar_vector_escalar,
 )
 from nucleo.sistemas import verificar_combinacion_lineal_con_pasos
+from nucleo.comprobaciones import vectores_aproximadamente_iguales
 from interfaz.ayudas import mostrar_texto, mostrar_error, crear_area_resultado, AyudaEmergente
 
 
@@ -69,10 +70,15 @@ class PestanaVectores(ttk.Frame):
                 f"Componente {i + 1}: {limpiar_numero(a)} + {limpiar_numero(b)} = {limpiar_numero(r)}"
                 for i, (a, b, r) in enumerate(zip(v1, v2, resultado))
             ]
+            reconstruido = restar_vectores(resultado, v2)
+            comprobado = vectores_aproximadamente_iguales(reconstruido, v1)
             pasos = [
                 f"PASO 1. Verificar que ambos vectores tengan la misma dimensión: {len(v1)} componentes.",
                 "PASO 2. Sumar componente a componente:\n" + "\n".join(operaciones),
                 "PASO 3. Formar el vector resultado:\nV1 + V2 = " + vector_a_texto(resultado),
+                "COMPROBACIÓN. Restar V2 al resultado debe recuperar V1:\n"
+                f"({vector_a_texto(resultado)}) − ({vector_a_texto(v2)}) = {vector_a_texto(reconstruido)}\n"
+                + ("✓ La comprobación es correcta." if comprobado else "✗ La comprobación no coincide."),
             ]
             mostrar_texto(self.txt_resultado, "V1 + V2 = " + vector_a_texto(resultado) + _bloque_pasos(pasos))
         except ValueError as error:
@@ -87,10 +93,15 @@ class PestanaVectores(ttk.Frame):
                 f"Componente {i + 1}: {limpiar_numero(a)} − {limpiar_numero(b)} = {limpiar_numero(r)}"
                 for i, (a, b, r) in enumerate(zip(v1, v2, resultado))
             ]
+            reconstruido = sumar_vectores(resultado, v2)
+            comprobado = vectores_aproximadamente_iguales(reconstruido, v1)
             pasos = [
                 f"PASO 1. Verificar que ambos vectores tengan la misma dimensión: {len(v1)} componentes.",
                 "PASO 2. Restar componente a componente:\n" + "\n".join(operaciones),
                 "PASO 3. Formar el vector resultado:\nV1 − V2 = " + vector_a_texto(resultado),
+                "COMPROBACIÓN. Sumar V2 al resultado debe recuperar V1:\n"
+                f"({vector_a_texto(resultado)}) + ({vector_a_texto(v2)}) = {vector_a_texto(reconstruido)}\n"
+                + ("✓ La comprobación es correcta." if comprobado else "✗ La comprobación no coincide."),
             ]
             mostrar_texto(self.txt_resultado, "V1 − V2 = " + vector_a_texto(resultado) + _bloque_pasos(pasos))
         except ValueError as error:
@@ -105,10 +116,26 @@ class PestanaVectores(ttk.Frame):
                 f"Componente {i + 1}: {limpiar_numero(escalar)} × {limpiar_numero(a)} = {limpiar_numero(r)}"
                 for i, (a, r) in enumerate(zip(v1, resultado))
             ]
+            if abs(escalar) > EPSILON:
+                reconstruido = multiplicar_vector_escalar(resultado, 1.0 / escalar)
+                comprobado = vectores_aproximadamente_iguales(reconstruido, v1)
+                texto_comprobacion = (
+                    "COMPROBACIÓN. Dividir el resultado entre k debe recuperar V1:\n"
+                    f"({vector_a_texto(resultado)}) ÷ {limpiar_numero(escalar)} = {vector_a_texto(reconstruido)}\n"
+                )
+            else:
+                esperado = [0.0 for _ in v1]
+                comprobado = vectores_aproximadamente_iguales(resultado, esperado)
+                texto_comprobacion = (
+                    "COMPROBACIÓN. Como k = 0, todas las componentes del resultado deben ser 0:\n"
+                    f"Resultado = {vector_a_texto(resultado)}\n"
+                )
+            texto_comprobacion += "✓ La comprobación es correcta." if comprobado else "✗ La comprobación no coincide."
             pasos = [
                 f"PASO 1. Tomar k = {limpiar_numero(escalar)}.",
                 "PASO 2. Multiplicar k por cada componente de V1:\n" + "\n".join(operaciones),
                 "PASO 3. Formar el vector resultado:\nk·V1 = " + vector_a_texto(resultado),
+                texto_comprobacion,
             ]
             mostrar_texto(
                 self.txt_resultado,
@@ -167,6 +194,22 @@ class PestanaVectores(ttk.Frame):
                     "La combinación es única."
                     if tipo == "unica"
                     else "Existen varias combinaciones; se muestra una solución con variables libres = 0."
+                )
+
+            if es_combinacion:
+                reconstruido = []
+                for componente in range(len(objetivo)):
+                    valor = sum(
+                        coeficientes[i] * generadores[i][componente]
+                        for i in range(len(generadores))
+                    )
+                    reconstruido.append(asegurar_finito(valor, "Comprobación de combinación lineal"))
+                comprobado = vectores_aproximadamente_iguales(reconstruido, objetivo)
+                pasos.append(
+                    "COMPROBACIÓN. Sustituir los coeficientes encontrados debe reconstruir el vector objetivo:\n"
+                    f"Vector reconstruido = {vector_a_texto(reconstruido)}\n"
+                    f"Vector objetivo     = {vector_a_texto(objetivo)}\n"
+                    + ("✓ Coinciden." if comprobado else "✗ No coinciden.")
                 )
 
             mostrar_texto(self.txt_resultado_combinacion, encabezado + _bloque_pasos(pasos))

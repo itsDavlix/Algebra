@@ -3,11 +3,12 @@
 import tkinter as tk
 from tkinter import ttk
 
-from nucleo.numeros import convertir_numero, limpiar_numero
+from nucleo.numeros import convertir_numero, limpiar_numero, EPSILON
 from nucleo.matrices import (
     leer_matriz, matriz_a_texto, dimensiones, sumar_matrices, restar_matrices,
     multiplicar_matriz_escalar, multiplicar_matrices, matriz_inversa_con_pasos,
 )
+from nucleo.comprobaciones import matrices_aproximadamente_iguales, matriz_identidad
 from interfaz.ayudas import mostrar_texto, mostrar_error, crear_area_resultado, AyudaEmergente
 
 
@@ -83,10 +84,15 @@ class PestanaMatrices(ttk.Frame):
                         f"C[{i + 1},{j + 1}] = {limpiar_numero(a[i][j])} + "
                         f"{limpiar_numero(b[i][j])} = {limpiar_numero(resultado[i][j])}"
                     )
+            reconstruida = restar_matrices(resultado, b)
+            comprobado = matrices_aproximadamente_iguales(reconstruida, a)
             pasos = [
                 f"PASO 1. Verificar dimensiones.\nA y B son de tamaño {filas}×{columnas}, así que se pueden sumar.",
                 "PASO 2. Sumar los elementos que están en la misma posición:\n" + "\n".join(calculos),
                 "PASO 3. Colocar los resultados en la matriz C = A + B.\n\n" + matriz_a_texto(resultado),
+                "COMPROBACIÓN. C − B debe recuperar A:\n\n"
+                + matriz_a_texto(reconstruida)
+                + ("\n\n✓ La comprobación es correcta." if comprobado else "\n\n✗ La comprobación no coincide."),
             ]
             mostrar_texto(self.txt_resultado, "A + B =\n" + matriz_a_texto(resultado) + _separar_pasos(pasos))
         except ValueError as error:
@@ -104,10 +110,15 @@ class PestanaMatrices(ttk.Frame):
                         f"C[{i + 1},{j + 1}] = {limpiar_numero(a[i][j])} − "
                         f"{limpiar_numero(b[i][j])} = {limpiar_numero(resultado[i][j])}"
                     )
+            reconstruida = sumar_matrices(resultado, b)
+            comprobado = matrices_aproximadamente_iguales(reconstruida, a)
             pasos = [
                 f"PASO 1. Verificar dimensiones.\nA y B son de tamaño {filas}×{columnas}, así que se pueden restar.",
                 "PASO 2. Restar los elementos que están en la misma posición:\n" + "\n".join(calculos),
                 "PASO 3. Colocar los resultados en C = A − B.\n\n" + matriz_a_texto(resultado),
+                "COMPROBACIÓN. C + B debe recuperar A:\n\n"
+                + matriz_a_texto(reconstruida)
+                + ("\n\n✓ La comprobación es correcta." if comprobado else "\n\n✗ La comprobación no coincide."),
             ]
             mostrar_texto(self.txt_resultado, "A − B =\n" + matriz_a_texto(resultado) + _separar_pasos(pasos))
         except ValueError as error:
@@ -126,10 +137,26 @@ class PestanaMatrices(ttk.Frame):
                         f"C[{i + 1},{j + 1}] = {limpiar_numero(escalar)} × "
                         f"{limpiar_numero(a[i][j])} = {limpiar_numero(resultado[i][j])}"
                     )
+            if abs(escalar) > EPSILON:
+                reconstruida = multiplicar_matriz_escalar(resultado, 1.0 / escalar)
+                comprobado = matrices_aproximadamente_iguales(reconstruida, a)
+                texto_comprobacion = (
+                    "COMPROBACIÓN. Dividir k·A entre k debe recuperar A:\n\n"
+                    + matriz_a_texto(reconstruida)
+                )
+            else:
+                esperada = [[0.0 for _ in range(columnas)] for _ in range(filas)]
+                comprobado = matrices_aproximadamente_iguales(resultado, esperada)
+                texto_comprobacion = (
+                    "COMPROBACIÓN. Como k = 0, el resultado debe ser la matriz cero:\n\n"
+                    + matriz_a_texto(resultado)
+                )
+            texto_comprobacion += "\n\n✓ La comprobación es correcta." if comprobado else "\n\n✗ La comprobación no coincide."
             pasos = [
                 f"PASO 1. Tomar el escalar k = {limpiar_numero(escalar)}.",
                 "PASO 2. Multiplicar k por cada entrada de A:\n" + "\n".join(calculos),
                 "PASO 3. Formar la matriz resultante k·A.\n\n" + matriz_a_texto(resultado),
+                texto_comprobacion,
             ]
             mostrar_texto(
                 self.txt_resultado,
@@ -156,11 +183,18 @@ class PestanaMatrices(ttk.Frame):
                     calculos.append(
                         f"C[{i + 1},{j + 1}] = {expresion} = {suma} = {limpiar_numero(resultado[i][j])}"
                     )
+            recalculada = [
+                [sum(a[i][k] * b[k][j] for k in range(columnas_a)) for j in range(columnas_b)]
+                for i in range(filas_a)
+            ]
+            comprobado = matrices_aproximadamente_iguales(recalculada, resultado)
             pasos = [
                 f"PASO 1. Verificar compatibilidad.\nA es {filas_a}×{columnas_a} y B es {filas_b}×{columnas_b}. "
                 f"Como columnas(A) = filas(B) = {columnas_a}, el producto existe y será {filas_a}×{columnas_b}.",
                 "PASO 2. Multiplicar cada fila de A por cada columna de B y sumar los productos:\n" + "\n".join(calculos),
                 "PASO 3. Formar C = A×B con los valores calculados.\n\n" + matriz_a_texto(resultado),
+                "COMPROBACIÓN. Se recalcula cada producto fila×columna y se compara con C.\n"
+                + ("✓ Todas las entradas coinciden." if comprobado else "✗ Hay entradas que no coinciden."),
             ]
             mostrar_texto(self.txt_resultado, "A × B =\n" + matriz_a_texto(resultado) + _separar_pasos(pasos))
         except ValueError as error:
@@ -170,6 +204,20 @@ class PestanaMatrices(ttk.Frame):
         try:
             a = leer_matriz(self.txt_a.get("1.0", "end"), "matriz A")
             resultado, pasos = matriz_inversa_con_pasos(a)
+            orden, _ = dimensiones(a)
+            identidad = matriz_identidad(orden)
+            izquierda = multiplicar_matrices(a, resultado)
+            derecha = multiplicar_matrices(resultado, a)
+            comprobado = (
+                matrices_aproximadamente_iguales(izquierda, identidad)
+                and matrices_aproximadamente_iguales(derecha, identidad)
+            )
+            pasos.append(
+                "COMPROBACIÓN. Una inversa correcta debe cumplir A·A⁻¹ = I y A⁻¹·A = I.\n\n"
+                "A·A⁻¹ =\n" + matriz_a_texto(izquierda)
+                + "\n\nA⁻¹·A =\n" + matriz_a_texto(derecha)
+                + ("\n\n✓ Ambas multiplicaciones producen la identidad." if comprobado else "\n\n✗ La comprobación no produce la identidad.")
+            )
             mostrar_texto(self.txt_resultado, "A⁻¹ =\n" + matriz_a_texto(resultado) + _separar_pasos(pasos))
         except ValueError as error:
             mostrar_error(error)

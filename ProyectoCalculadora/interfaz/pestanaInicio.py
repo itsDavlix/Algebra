@@ -16,7 +16,7 @@ class PestanaInicio(ttk.Frame):
 
         texto = (
             "Escribe los datos en el formato indicado y pulsa la operación que necesitas.\n"
-            "Cada función muestra el resultado y el procedimiento paso a paso usado para obtenerlo.\n\n"
+            "Cada función muestra el resultado, el procedimiento paso a paso y una comprobación matemática cuando corresponde.\n\n"
             "¿Cómo se escribe un vector?\n"
             "• Los componentes van separados por espacios o comas.\n"
             "• Ejemplo: 1, 2, 3     o     1 2 3\n\n"
@@ -30,7 +30,7 @@ class PestanaInicio(ttk.Frame):
             "• Ejemplos: IV, XIV, XL, MCMXC.\n\n"
             "Módulos disponibles:\n"
             "• Vectores: suma, resta, producto por escalar y verificación de combinación lineal.\n"
-            "• Matrices: suma, resta, producto por escalar, producto de matrices y matriz inversa.\n"
+            "• Matrices: suma, resta, producto por escalar, producto de matrices, matriz inversa y comprobaciones.\n"
             "• Ecuaciones A·X = B: resolución por Gauss-Jordan y comprobación de una solución propuesta.\n"
             "• Números romanos: suma, resta, multiplicación y división exacta.\n"
             "• Programa anterior: permite ejecutar un archivo .py elaborado previamente.\n\n"

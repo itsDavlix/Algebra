@@ -7,6 +7,12 @@ from nucleo.numeros import convertir_numero
 from nucleo.romanos import operar_romanos
 from nucleo.sistemas import resolver_sistema_gauss_jordan_con_pasos
 from nucleo.vectores import leer_vector, multiplicar_vector_escalar
+from nucleo.comprobaciones import (
+    numeros_aproximadamente_iguales,
+    vectores_aproximadamente_iguales,
+    matrices_aproximadamente_iguales,
+    matriz_identidad,
+)
 
 
 class ValidacionesTest(unittest.TestCase):
@@ -53,6 +59,34 @@ class ValidacionesTest(unittest.TestCase):
     def test_resultado_romano_fuera_de_rango(self):
         with self.assertRaises(ValueError):
             operar_romanos("V", "X", "-")
+
+    def test_comprobacion_numerica_con_tolerancia(self):
+        self.assertTrue(numeros_aproximadamente_iguales(0.1 + 0.2, 0.3))
+        self.assertFalse(numeros_aproximadamente_iguales(1, 1.1))
+
+    def test_comprobacion_vectores(self):
+        self.assertTrue(vectores_aproximadamente_iguales([1, 2], [1.0, 2.0]))
+        self.assertFalse(vectores_aproximadamente_iguales([1, 2], [1, 3]))
+        self.assertFalse(vectores_aproximadamente_iguales([1, 2], [1, 2, 3]))
+
+    def test_comprobacion_matrices(self):
+        self.assertTrue(
+            matrices_aproximadamente_iguales(
+                [[1, 0], [0, 1]],
+                matriz_identidad(2),
+            )
+        )
+        self.assertFalse(
+            matrices_aproximadamente_iguales(
+                [[1, 0], [0, 2]],
+                matriz_identidad(2),
+            )
+        )
+
+    def test_comprobacion_inversa(self):
+        inversa = matriz_inversa([[2, 0], [0, 4]])
+        producto = multiplicar_matrices([[2, 0], [0, 4]], inversa)
+        self.assertTrue(matrices_aproximadamente_iguales(producto, matriz_identidad(2)))
 
 
 if __name__ == "__main__":

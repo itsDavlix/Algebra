@@ -2,7 +2,7 @@
 
 from tkinter import ttk
 
-from nucleo.romanos import operar_romanos_con_pasos
+from nucleo.romanos import operar_romanos_con_pasos, romano_a_entero
 from interfaz.ayudas import mostrar_texto, mostrar_error, crear_area_resultado, AyudaEmergente
 
 
@@ -74,6 +74,13 @@ class PestanaRomanos(ttk.Frame):
                 texto_a, texto_b, simbolo
             )
             separador = "\n\n" + "─" * 52 + "\n\n"
+            decimal_comprobado = romano_a_entero(resultado_romano)
+            comprobado = decimal_comprobado == resultado_decimal
+            pasos.append(
+                "COMPROBACIÓN. Convertir el resultado romano de nuevo a decimal debe conservar el valor:\n"
+                f"{resultado_romano} = {decimal_comprobado}\n"
+                + ("✓ La comprobación es correcta." if comprobado else "✗ La comprobación no coincide.")
+            )
             salida = (
                 f"RESULTADO ROMANO: {resultado_romano}\n"
                 f"RESULTADO DECIMAL: {resultado_decimal}\n\n"

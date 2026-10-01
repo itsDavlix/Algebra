@@ -22,6 +22,7 @@ Características:
 - Operaciones con matrices, incluyendo matriz inversa.
 - Resolución y evaluación de ecuaciones matriciales A·X = B.
 - Operaciones con números romanos.
+- Comprobaciones automáticas de resultados con tolerancia numérica.
 - Opción para ejecutar un programa .py elaborado anteriormente."""
 
 
