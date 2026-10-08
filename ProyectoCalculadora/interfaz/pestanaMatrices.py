@@ -8,6 +8,7 @@ from nucleo.matrices import (
     leer_matriz, matriz_a_texto, dimensiones, sumar_matrices, restar_matrices,
     multiplicar_matriz_escalar, multiplicar_matrices, matriz_inversa_con_pasos,
 )
+from nucleo.determinantes import recomendar_metodo, determinante, formatear_determinante
 from nucleo.comprobaciones import matrices_aproximadamente_iguales, matriz_identidad
 from interfaz.ayudas import mostrar_texto, mostrar_error, crear_area_resultado, AyudaEmergente
 
@@ -64,6 +65,10 @@ class PestanaMatrices(ttk.Frame):
         ttk.Button(botones, text="Multiplicar por escalar (k·A)", command=self._accion_escalar).grid(row=1, column=0, padx=4, pady=4, sticky="ew")
         ttk.Button(botones, text="Multiplicar matrices (A × B)", command=self._accion_producto).grid(row=1, column=1, padx=4, pady=4, sticky="ew")
         ttk.Button(botones, text="Matriz inversa (A⁻¹)", style="Accion.TButton", command=self._accion_inversa).grid(row=2, column=0, columnspan=2, padx=4, pady=4, sticky="ew")
+
+        # Abre la recomendación antes de habilitar la elección del método.
+        ttk.Button(botones, text="Determinante de A", command=self._accion_determinante).grid(
+            row=3, column=0, columnspan=2, padx=4, pady=4, sticky="ew")
 
         ttk.Label(marco, text="Resultado y procedimiento paso a paso:").pack(anchor="w", pady=(16, 4))
         marco_resultado, self.txt_resultado = crear_area_resultado(marco, alto=20)
@@ -221,6 +226,58 @@ class PestanaMatrices(ttk.Frame):
             mostrar_texto(self.txt_resultado, "A⁻¹ =\n" + matriz_a_texto(resultado) + _separar_pasos(pasos))
         except ValueError as error:
             mostrar_error(error)
+
+    def _accion_determinante(self):
+        """Valida A y presenta la eficiencia antes de que el usuario elija."""
+        try:
+            a = leer_matriz(self.txt_a.get("1.0", "end"), "matriz A")
+            _, recomendacion = recomendar_metodo(a)
+        except ValueError as error:
+            mostrar_error(error)
+            return
+
+        # La ventana modal conserva la matriz evaluada durante toda la selección.
+        ventana = tk.Toplevel(self)
+        ventana.title("Elegir método del determinante")
+        ventana.transient(self.winfo_toplevel())
+        contenido = ttk.Frame(ventana, padding=18)
+        contenido.pack(fill="both", expand=True)
+        ttk.Label(contenido, text=f"Matriz A: {len(a)} × {len(a)}", font=("Arial", 12, "bold")).pack(anchor="w")
+        ttk.Label(contenido, text=recomendacion, wraplength=490).pack(anchor="w", pady=12)
+        ttk.Label(contenido, text="Cofactores se detiene tras 100000 expansiones para evitar "
+                  "una espera excesiva. En ese caso, podés elegir LU.", wraplength=490).pack(anchor="w")
+
+        # Ningún método queda seleccionado automáticamente: la decisión es del usuario.
+        metodo = tk.StringVar(value="")
+        for nombre, valor in (("Cofactores", "cofactores"), ("LU con pivoteo parcial", "lu")):
+            ttk.Radiobutton(contenido, text=nombre, variable=metodo, value=valor).pack(anchor="w", pady=5)
+
+        def calcular():
+            """Calcula con el método seleccionado y explica la fórmula utilizada."""
+            try:
+                elegido = metodo.get()
+                resultado = determinante(a, elegido)
+                explicacion = (
+                    "Se expande por la fila con más ceros: det(A) = Σ aᵢⱼ (−1)ⁱ⁺ʲ det(Mᵢⱼ). "
+                    "Cada menor elimina la fila i y la columna j."
+                    if elegido == "cofactores" else
+                    "Se factoriza PA = LU con pivoteo parcial. Como det(L) = 1, "
+                    "det(A) = (−1)ˢ ∏ Uᵢᵢ, donde s es el número de intercambios de filas."
+                )
+                mostrar_texto(self.txt_resultado,
+                              f"det(A) = {formatear_determinante(resultado)}" + _separar_pasos([
+                                  "PASO 1. Verificar que A sea cuadrada.\n" + recomendacion,
+                                  f"PASO 2. Método elegido: {elegido.upper()}.\n" + explicacion,
+                                  "PASO 3. Resultado: " + formatear_determinante(resultado),
+                              ]))
+                ventana.destroy()
+            except ValueError as error:
+                mostrar_error(error)
+
+        # Cancelar cierra el diálogo sin ejecutar una operación.
+        ttk.Button(contenido, text="Calcular", command=calcular).pack(side="left", pady=12)
+        ttk.Button(contenido, text="Cancelar", command=ventana.destroy).pack(side="right", pady=12)
+        ventana.grab_set()
 
     def _limpiar(self):
         self.txt_a.delete("1.0", "end")
