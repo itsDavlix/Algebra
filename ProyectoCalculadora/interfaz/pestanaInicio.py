@@ -11,6 +11,7 @@ class PestanaInicio(ttk.Frame):
         self._construir()
 
     def _construir(self):
+        # Presenta instrucciones de entrada y un resumen de los módulos disponibles.
         marco = ttk.LabelFrame(self, text="Antes de comenzar", style="Seccion.TLabelframe", padding=18)
         marco.pack(fill="both", expand=True)
 

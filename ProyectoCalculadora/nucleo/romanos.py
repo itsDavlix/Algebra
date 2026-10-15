@@ -25,6 +25,7 @@ _PATRON_ROMANO = re.compile(
 )
 
 
+# Construye la escritura canónica tomando los símbolos de mayor a menor.
 def entero_a_romano(numero):
     """Convierte un entero entre 1 y 3999 a notación romana canónica."""
     if isinstance(numero, bool) or not isinstance(numero, int):
@@ -51,6 +52,7 @@ def romano_a_entero(texto):
             f"{texto!r} no es un número romano válido. Usa la forma estándar, por ejemplo: IV, IX, XIV o MCMXC."
         )
 
+    # Al recorrer desde la derecha, un valor menor que el anterior se resta.
     total = 0
     anterior = 0
     for simbolo in reversed(romano):
@@ -101,6 +103,7 @@ def operar_romanos(romano_a, romano_b, operacion):
     a = romano_a_entero(romano_a)
     b = romano_a_entero(romano_b)
 
+    # La aritmética se realiza en enteros; después se valida el rango romano.
     if operacion == "+":
         resultado = a + b
     elif operacion == "-":

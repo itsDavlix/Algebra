@@ -16,6 +16,7 @@ from nucleo.comprobaciones import (
 
 
 class ValidacionesTest(unittest.TestCase):
+    # Comprueba entradas correctas, errores frecuentes y límites numéricos.
     def test_vector_valido(self):
         self.assertEqual(leer_vector("1, 2, -3.5"), [1.0, 2.0, -3.5])
 

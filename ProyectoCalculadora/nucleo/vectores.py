@@ -7,6 +7,7 @@ from nucleo.numeros import convertir_numero, limpiar_numero, asegurar_finito
 MAX_COMPONENTES = 200
 
 
+# Convierte los separadores permitidos en una lista de componentes.
 def _separar_componentes(texto, nombre="vector"):
     texto = str(texto).strip()
     if not texto:
@@ -38,6 +39,7 @@ def vector_a_texto(vector):
     return "(" + ", ".join(limpiar_numero(x) for x in vector) + ")"
 
 
+# Las operaciones entre dos vectores requieren dimensiones iguales.
 def _validar_misma_dimension(v1, v2):
     if not v1 or not v2:
         raise ValueError("Los vectores no pueden estar vacíos.")

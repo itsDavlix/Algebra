@@ -5,16 +5,138 @@ from tkinter import ttk
 
 from nucleo.numeros import convertir_numero, limpiar_numero, EPSILON
 from nucleo.matrices import (
-    leer_matriz, matriz_a_texto, dimensiones, sumar_matrices, restar_matrices,
+    matriz_a_texto, dimensiones, sumar_matrices, restar_matrices,
     multiplicar_matriz_escalar, multiplicar_matrices, matriz_inversa_con_pasos,
 )
-from nucleo.determinantes import recomendar_metodo, determinante, formatear_determinante
+from nucleo.determinantes import (
+    recomendar_metodo, determinante_con_pasos, formatear_determinante,
+)
 from nucleo.comprobaciones import matrices_aproximadamente_iguales, matriz_identidad
-from interfaz.ayudas import mostrar_texto, mostrar_error, crear_area_resultado, AyudaEmergente
+from interfaz.ayudas import mostrar_texto, mostrar_error, crear_area_resultado
 
 
 def _separar_pasos(pasos):
     return "\n\n" + ("\n\n" + "─" * 56 + "\n\n").join(pasos)
+
+
+class EntradaMatriz(ttk.Frame):
+    """Editor de matriz en celdas para no depender de espacios entre números."""
+
+    def __init__(self, padre, nombre, valores):
+        super().__init__(padre)
+        self.nombre = nombre
+        self.celdas = []
+        filas = len(valores)
+        columnas = len(valores[0])
+
+        # Los selectores ajustan el tamaño sin perder valores que ya se escribieron.
+        controles = ttk.Frame(self)
+        controles.pack(fill="x", pady=(0, 4))
+        ttk.Label(controles, text=f"Matriz {nombre}:").pack(side="left")
+        ttk.Label(controles, text="Filas").pack(side="left", padx=(12, 3))
+        self.filas_var = tk.StringVar(value=str(filas))
+        ttk.Spinbox(
+            controles, from_=1, to=40, width=3, textvariable=self.filas_var,
+            state="readonly", command=self._cambiar_tamano,
+        ).pack(side="left")
+        ttk.Label(controles, text="Columnas").pack(side="left", padx=(8, 3))
+        self.columnas_var = tk.StringVar(value=str(columnas))
+        ttk.Spinbox(
+            controles, from_=1, to=40, width=3, textvariable=self.columnas_var,
+            state="readonly", command=self._cambiar_tamano,
+        ).pack(side="left")
+
+        # El lienzo permite desplazar la cuadrícula cuando no cabe completa.
+        marco = ttk.Frame(self)
+        marco.pack(fill="both", expand=True)
+        self.canvas = tk.Canvas(
+            marco, height=120, background="white", highlightthickness=0
+        )
+        barra_y = ttk.Scrollbar(marco, orient="vertical", command=self.canvas.yview)
+        barra_x = ttk.Scrollbar(marco, orient="horizontal", command=self.canvas.xview)
+        self.canvas.configure(yscrollcommand=barra_y.set, xscrollcommand=barra_x.set)
+        self.canvas.grid(row=0, column=0, sticky="nsew")
+        barra_y.grid(row=0, column=1, sticky="ns")
+        barra_x.grid(row=1, column=0, sticky="ew")
+        marco.rowconfigure(0, weight=1)
+        marco.columnconfigure(0, weight=1)
+
+        self.contenido = ttk.Frame(self.canvas)
+        self.ventana_canvas = self.canvas.create_window(
+            (0, 0), window=self.contenido, anchor="nw"
+        )
+        self.contenido.bind("<Configure>", self._actualizar_scrollregion)
+        self.canvas.bind("<Configure>", self._ajustar_ancho_contenido)
+        self._dibujar_celdas(valores)
+
+    def _actualizar_scrollregion(self, _evento=None):
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def _ajustar_ancho_contenido(self, _evento=None):
+        ancho = max(self.canvas.winfo_width(), self.contenido.winfo_reqwidth())
+        self.canvas.itemconfigure(self.ventana_canvas, width=ancho)
+        self._actualizar_scrollregion()
+
+    def _leer_valores_actuales(self):
+        return [[celda.get() for celda in fila] for fila in self.celdas]
+
+    def _cambiar_tamano(self):
+        # Conserva celdas existentes y deja vacías las nuevas posiciones.
+        valores = self._leer_valores_actuales()
+        filas, columnas = int(self.filas_var.get()), int(self.columnas_var.get())
+        nuevos = [
+            [
+                valores[i][j] if i < len(valores) and j < len(valores[i]) else ""
+                for j in range(columnas)
+            ]
+            for i in range(filas)
+        ]
+        self._dibujar_celdas(nuevos)
+
+    def _dibujar_celdas(self, valores):
+        # Redibuja encabezados y casillas usando el tamaño actual de la matriz.
+        for widget in self.contenido.winfo_children():
+            widget.destroy()
+        self.celdas = []
+        columnas = len(valores[0])
+        self.contenido.grid_columnconfigure(0, weight=0)
+        for j in range(columnas):
+            self.contenido.grid_columnconfigure(j + 1, weight=1, uniform="columna")
+        ttk.Label(self.contenido, text="").grid(row=0, column=0, padx=2, pady=2)
+        for j in range(columnas):
+            ttk.Label(self.contenido, text=str(j + 1)).grid(
+                row=0, column=j + 1, padx=2, pady=2
+            )
+        for i, fila in enumerate(valores):
+            ttk.Label(self.contenido, text=str(i + 1)).grid(
+                row=i + 1, column=0, padx=2, pady=2
+            )
+            celdas_fila = []
+            for j, valor in enumerate(fila):
+                celda = ttk.Entry(self.contenido, width=8, justify="center")
+                celda.grid(row=i + 1, column=j + 1, padx=2, pady=2, sticky="ew")
+                celda.insert(0, valor)
+                celdas_fila.append(celda)
+            self.celdas.append(celdas_fila)
+        self.canvas.configure(height=min(280, max(170, 35 * len(valores) + 35)))
+        self.contenido.update_idletasks()
+        self._ajustar_ancho_contenido()
+        self.canvas.configure(scrollregion=self.canvas.bbox("all"))
+
+    def obtener(self):
+        # Valida cada casilla e informa la coordenada del valor incorrecto.
+        matriz = []
+        for i, fila in enumerate(self.celdas, start=1):
+            matriz.append([
+                convertir_numero(celda.get(), f"Elemento [{i},{j}] de la matriz {self.nombre}")
+                for j, celda in enumerate(fila, start=1)
+            ])
+        return matriz
+
+    def limpiar(self):
+        for fila in self.celdas:
+            for celda in fila:
+                celda.delete(0, "end")
 
 
 class PestanaMatrices(ttk.Frame):
@@ -24,36 +146,31 @@ class PestanaMatrices(ttk.Frame):
         super().__init__(padre, padding=16)
         self.columnconfigure(0, weight=1)
         self.columnconfigure(1, weight=1)
-        self.rowconfigure(0, weight=1)
+        self.rowconfigure(0, weight=3)
+        self.rowconfigure(1, weight=2)
         self._construir_entrada()
         self._construir_operaciones()
 
     def _construir_entrada(self):
-        marco = ttk.LabelFrame(self, text="Matrices A y B", style="Seccion.TLabelframe", padding=12)
-        marco.grid(row=0, column=0, sticky="nsew", padx=(0, 7))
+        # Coloca las matrices una junto a la otra para ampliar su espacio visible.
+        marco = ttk.LabelFrame(
+            self, text="Matrices A y B — ingresa cada valor en su casilla",
+            style="Seccion.TLabelframe", padding=10,
+        )
+        marco.grid(row=0, column=0, columnspan=2, sticky="nsew", pady=(0, 7))
+        marco.columnconfigure(0, weight=1, uniform="matrices")
+        marco.columnconfigure(1, weight=1, uniform="matrices")
+        marco.rowconfigure(0, weight=1)
 
-        ttk.Label(marco, text="Matriz A (una fila por línea):").pack(anchor="w")
-        self.txt_a = tk.Text(marco, height=9)
-        self.txt_a.pack(fill="x", pady=(2, 10))
-        self.txt_a.insert("1.0", "1 2\n3 4")
-        AyudaEmergente(self.txt_a, "Separa los valores de cada fila con espacios o comas.")
-
-        ttk.Label(marco, text="Matriz B (una fila por línea):").pack(anchor="w")
-        self.txt_b = tk.Text(marco, height=9)
-        self.txt_b.pack(fill="x", pady=(2, 10))
-        self.txt_b.insert("1.0", "5 6\n7 8")
-
-        fila_escalar = ttk.Frame(marco)
-        fila_escalar.pack(fill="x", pady=5)
-        ttk.Label(fila_escalar, text="Escalar (k):").pack(side="left")
-        self.ent_escalar = ttk.Entry(fila_escalar, width=12)
-        self.ent_escalar.pack(side="left", padx=8)
-        self.ent_escalar.insert(0, "2")
-        ttk.Button(fila_escalar, text="Limpiar", command=self._limpiar).pack(side="right")
+        self.entrada_a = EntradaMatriz(marco, "A", [["1", "2"], ["3", "4"]])
+        self.entrada_a.grid(row=0, column=0, sticky="nsew", padx=(0, 6))
+        self.entrada_b = EntradaMatriz(marco, "B", [["5", "6"], ["7", "8"]])
+        self.entrada_b.grid(row=0, column=1, sticky="nsew", padx=(6, 0))
 
     def _construir_operaciones(self):
+        # Separa los botones de cálculo del panel donde se muestran los resultados.
         marco = ttk.LabelFrame(self, text="Elige una operación", style="Seccion.TLabelframe", padding=12)
-        marco.grid(row=0, column=1, sticky="nsew", padx=(7, 0))
+        marco.grid(row=1, column=0, sticky="nsew", padx=(0, 7))
 
         botones = ttk.Frame(marco)
         botones.pack(fill="x")
@@ -70,15 +187,28 @@ class PestanaMatrices(ttk.Frame):
         ttk.Button(botones, text="Determinante de A", command=self._accion_determinante).grid(
             row=3, column=0, columnspan=2, padx=4, pady=4, sticky="ew")
 
-        ttk.Label(marco, text="Resultado y procedimiento paso a paso:").pack(anchor="w", pady=(16, 4))
-        marco_resultado, self.txt_resultado = crear_area_resultado(marco, alto=20)
-        marco_resultado.pack(fill="both", expand=True)
+        fila_escalar = ttk.Frame(marco)
+        fila_escalar.pack(fill="x", pady=(8, 0))
+        ttk.Label(fila_escalar, text="Escalar (k):").pack(side="left")
+        self.ent_escalar = ttk.Entry(fila_escalar, width=12)
+        self.ent_escalar.pack(side="left", padx=8)
+        self.ent_escalar.insert(0, "2")
+        ttk.Button(fila_escalar, text="Limpiar", command=self._limpiar).pack(side="right")
+
+        marco_resultado = ttk.LabelFrame(
+            self, text="Resultado y procedimiento paso a paso",
+            style="Seccion.TLabelframe", padding=10,
+        )
+        marco_resultado.grid(row=1, column=1, sticky="nsew", padx=(7, 0))
+        area, self.txt_resultado = crear_area_resultado(marco_resultado, alto=10)
+        area.pack(fill="both", expand=True)
 
     def _obtener_ab(self):
-        return leer_matriz(self.txt_a.get("1.0", "end"), "matriz A"), leer_matriz(self.txt_b.get("1.0", "end"), "matriz B")
+        return self.entrada_a.obtener(), self.entrada_b.obtener()
 
     def _accion_suma(self):
         try:
+            # Calcula A+B y comprueba que al restar B se recupere A.
             a, b = self._obtener_ab()
             resultado = sumar_matrices(a, b)
             filas, columnas = dimensiones(a)
@@ -105,6 +235,7 @@ class PestanaMatrices(ttk.Frame):
 
     def _accion_resta(self):
         try:
+            # Calcula A-B y comprueba que al sumar B se recupere A.
             a, b = self._obtener_ab()
             resultado = restar_matrices(a, b)
             filas, columnas = dimensiones(a)
@@ -131,7 +262,8 @@ class PestanaMatrices(ttk.Frame):
 
     def _accion_escalar(self):
         try:
-            a = leer_matriz(self.txt_a.get("1.0", "end"), "matriz A")
+            # Multiplica cada elemento de A por k y comprueba el caso correspondiente.
+            a = self.entrada_a.obtener()
             escalar = convertir_numero(self.ent_escalar.get())
             resultado = multiplicar_matriz_escalar(a, escalar)
             filas, columnas = dimensiones(a)
@@ -172,6 +304,7 @@ class PestanaMatrices(ttk.Frame):
 
     def _accion_producto(self):
         try:
+            # Calcula A·B si las dimensiones interiores son compatibles.
             a, b = self._obtener_ab()
             resultado = multiplicar_matrices(a, b)
             filas_a, columnas_a = dimensiones(a)
@@ -207,7 +340,8 @@ class PestanaMatrices(ttk.Frame):
 
     def _accion_inversa(self):
         try:
-            a = leer_matriz(self.txt_a.get("1.0", "end"), "matriz A")
+            # Calcula A⁻¹ y comprueba ambos productos A·A⁻¹ y A⁻¹·A.
+            a = self.entrada_a.obtener()
             resultado, pasos = matriz_inversa_con_pasos(a)
             orden, _ = dimensiones(a)
             identidad = matriz_identidad(orden)
@@ -230,7 +364,8 @@ class PestanaMatrices(ttk.Frame):
     def _accion_determinante(self):
         """Valida A y presenta la eficiencia antes de que el usuario elija."""
         try:
-            a = leer_matriz(self.txt_a.get("1.0", "end"), "matriz A")
+            # Revisa A antes de abrir el selector de método.
+            a = self.entrada_a.obtener()
             _, recomendacion = recomendar_metodo(a)
         except ValueError as error:
             mostrar_error(error)
@@ -243,6 +378,10 @@ class PestanaMatrices(ttk.Frame):
         contenido = ttk.Frame(ventana, padding=18)
         contenido.pack(fill="both", expand=True)
         ttk.Label(contenido, text=f"Matriz A: {len(a)} × {len(a)}", font=("Arial", 12, "bold")).pack(anchor="w")
+        ttk.Label(
+            contenido,
+            text="✓ Validación: todas las entradas son números finitos y A es cuadrada.",
+        ).pack(anchor="w", pady=(4, 0))
         ttk.Label(contenido, text=recomendacion, wraplength=490).pack(anchor="w", pady=12)
         ttk.Label(contenido, text="Cofactores se detiene tras 100000 expansiones para evitar "
                   "una espera excesiva. En ese caso, podés elegir LU.", wraplength=490).pack(anchor="w")
@@ -253,23 +392,16 @@ class PestanaMatrices(ttk.Frame):
             ttk.Radiobutton(contenido, text=nombre, variable=metodo, value=valor).pack(anchor="w", pady=5)
 
         def calcular():
-            """Calcula con el método seleccionado y explica la fórmula utilizada."""
+            """Calcula con el método elegido y muestra sus pasos y la comprobación."""
             try:
+                # Presenta el desarrollo del método seleccionado y su contraste.
                 elegido = metodo.get()
-                resultado = determinante(a, elegido)
-                explicacion = (
-                    "Se expande por la fila con más ceros: det(A) = Σ aᵢⱼ (−1)ⁱ⁺ʲ det(Mᵢⱼ). "
-                    "Cada menor elimina la fila i y la columna j."
-                    if elegido == "cofactores" else
-                    "Se factoriza PA = LU con pivoteo parcial. Como det(L) = 1, "
-                    "det(A) = (−1)ˢ ∏ Uᵢᵢ, donde s es el número de intercambios de filas."
-                )
+                resultado, pasos, comprobacion = determinante_con_pasos(a, elegido)
+                pasos.append(comprobacion)
                 mostrar_texto(self.txt_resultado,
-                              f"det(A) = {formatear_determinante(resultado)}" + _separar_pasos([
-                                  "PASO 1. Verificar que A sea cuadrada.\n" + recomendacion,
-                                  f"PASO 2. Método elegido: {elegido.upper()}.\n" + explicacion,
-                                  "PASO 3. Resultado: " + formatear_determinante(resultado),
-                              ]))
+                              f"det(A) = {formatear_determinante(resultado)} "
+                              f"(método: {elegido.upper()})"
+                              + _separar_pasos(pasos))
                 ventana.destroy()
             except ValueError as error:
                 mostrar_error(error)
@@ -280,7 +412,7 @@ class PestanaMatrices(ttk.Frame):
         ventana.grab_set()
 
     def _limpiar(self):
-        self.txt_a.delete("1.0", "end")
-        self.txt_b.delete("1.0", "end")
+        self.entrada_a.limpiar()
+        self.entrada_b.limpiar()
         self.ent_escalar.delete(0, "end")
         mostrar_texto(self.txt_resultado, "")

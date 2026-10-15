@@ -18,6 +18,7 @@ class PestanaRomanos(ttk.Frame):
         self._construir_resultado()
 
     def _construir_entrada(self):
+        # Recibe los dos números y ofrece los botones de operación.
         marco = ttk.LabelFrame(
             self,
             text="Operaciones con números romanos",
@@ -61,6 +62,7 @@ class PestanaRomanos(ttk.Frame):
         ).pack(anchor="w", pady=(14, 0))
 
     def _construir_resultado(self):
+        # Reserva un área desplazable para el resultado y su explicación.
         marco = ttk.LabelFrame(self, text="Resultado y procedimiento paso a paso", style="Seccion.TLabelframe", padding=14)
         marco.grid(row=0, column=1, sticky="nsew", padx=(7, 0))
         marco_resultado, self.txt_resultado = crear_area_resultado(marco, alto=20)
@@ -68,6 +70,7 @@ class PestanaRomanos(ttk.Frame):
 
     def _operar(self, simbolo):
         try:
+            # Ejecuta la conversión, calcula y verifica el resultado romano.
             texto_a = self.ent_a.get()
             texto_b = self.ent_b.get()
             resultado_romano, resultado_decimal, pasos = operar_romanos_con_pasos(

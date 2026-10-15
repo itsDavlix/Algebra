@@ -14,6 +14,7 @@ class PestanaProgramaAnterior(ttk.Frame):
         self._construir()
 
     def _construir(self):
+        # Explica el flujo y ofrece un selector de archivos Python.
         marco = ttk.LabelFrame(self, text="Abrir el programa anterior", style="Seccion.TLabelframe", padding=18)
         marco.pack(fill="both", expand=True)
 
@@ -32,6 +33,7 @@ class PestanaProgramaAnterior(ttk.Frame):
         self.lbl_estado.pack(anchor="w", pady=(14, 0))
 
     def _accion_ejecutar(self):
+        # Ejecuta el archivo elegido con el mismo intérprete en otro proceso.
         ruta = filedialog.askopenfilename(
             title="Selecciona el programa anterior",
             filetypes=[("Archivos Python", "*.py")],

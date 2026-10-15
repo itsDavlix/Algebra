@@ -8,6 +8,7 @@ MAX_FILAS = 40
 MAX_COLUMNAS = 40
 
 
+# Comprueba que la matriz sea rectangular, finita y esté dentro de los límites.
 def _validar_matriz(matriz, nombre="La matriz", validar_limites=True):
     if not isinstance(matriz, (list, tuple)) or not matriz:
         raise ValueError(f"{nombre} no puede estar vacía.")
@@ -26,17 +27,33 @@ def _validar_matriz(matriz, nombre="La matriz", validar_limites=True):
     return len(matriz), columnas
 
 
+def _normalizar_lineas_matriz(texto):
+    """Acepta filas separadas por salto de línea, punto y coma o barras verticales."""
+    filas = []
+    for bloque in re.split(r"[;\n]+", str(texto).strip()):
+        bloque = bloque.strip()
+        if not bloque:
+            continue
+        if "|" in bloque:
+            filas.extend(part.strip() for part in bloque.split("|") if part.strip())
+        else:
+            filas.append(bloque)
+    if not filas:
+        raise ValueError("La matriz no contiene datos válidos.")
+    return filas
+
+
 def leer_matriz(texto, nombre="matriz"):
     """Interpreta una matriz por filas y reporta la ubicación exacta de entradas inválidas."""
     texto = str(texto).strip()
     if not texto:
         raise ValueError(f"Escribe datos para la {nombre} antes de continuar.")
 
-    lineas_originales = texto.splitlines()
-    if any(not linea.strip() for linea in lineas_originales):
+    if any(not linea.strip() for linea in texto.splitlines()):
         raise ValueError(
             f"La {nombre} contiene una fila vacía. Elimina líneas en blanco entre las filas."
         )
+    lineas_originales = _normalizar_lineas_matriz(texto)
     if len(lineas_originales) > MAX_FILAS:
         raise ValueError(f"La {nombre} supera el máximo de {MAX_FILAS} filas.")
 
@@ -48,7 +65,8 @@ def leer_matriz(texto, nombre="matriz"):
             raise ValueError(
                 f"Fila {numero_linea} de la {nombre}: hay una coma sin número."
             )
-        partes = limpio.replace(",", " ").split()
+        partes = re.split(r"[\s,]+", limpio)
+        partes = [parte for parte in partes if parte]
         if len(partes) > MAX_COLUMNAS:
             raise ValueError(
                 f"Fila {numero_linea} de la {nombre}: supera el máximo de {MAX_COLUMNAS} columnas."
@@ -148,6 +166,7 @@ def matriz_inversa_con_pasos(matriz):
     if filas != columnas:
         raise ValueError(f"La matriz debe ser cuadrada para calcular su inversa; recibiste {filas}×{columnas}.")
 
+    # Se combina A con la identidad para transformar [A | I] en [I | A⁻¹].
     n = filas
     aumentada = []
     for i in range(n):

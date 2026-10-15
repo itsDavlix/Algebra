@@ -2,7 +2,7 @@
 
 Ejecutá `python main.py` con Python 3 y Tkinter disponible. No se agregaron dependencias externas.
 
-En la pestaña Matrices, ingresá una matriz cuadrada en A y pulsá **Determinante de A**. La ventana muestra la recomendación de eficiencia antes de elegir **Cofactores** o **LU con pivoteo parcial**. Marcá una opción y pulsá **Calcular**. No hace falta completar B.
+En la pestaña Matrices, ingresa cada elemento de A y B en su propia casilla y ajusta el número de filas y columnas con los controles. Así no necesitas separar valores con espacios. Si una casilla está vacía o tiene un valor inválido, el programa indica su posición. Para calcular un determinante, ingresa una matriz cuadrada en A y pulsa **Determinante de A**. La ventana muestra la recomendación de eficiencia antes de elegir **Cofactores** o **LU con pivoteo parcial**. Marca una opción y pulsa **Calcular**. No hace falta completar B.
 
 ## Organización del código
 

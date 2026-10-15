@@ -10,6 +10,7 @@ EPSILON = 1e-10
 _PATRON_NUMERO = re.compile(r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$")
 
 
+# Evita que valores infinitos o entradas no numéricas lleguen a las operaciones.
 def asegurar_finito(numero, contexto="El resultado"):
     """Valida que un valor sea un número real finito y devuelve float(numero)."""
     try:

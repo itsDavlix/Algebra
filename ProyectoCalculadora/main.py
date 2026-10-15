@@ -1,6 +1,16 @@
+import os
+import sys
 import tkinter as tk
 from tkinter import ttk
 
+
+# Permite encontrar los módulos locales también al iniciar main.py directamente.
+if __package__ is None or __package__ == "":
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+from interfaz.pestañaDeterminantes import PestanaDeterminantes
 from interfaz.estilos import configurar_estilo
 from interfaz.pestanaInicio import PestanaInicio
 from interfaz.pestanaVectores import PestanaVectores
@@ -31,6 +41,7 @@ class CalculadoraAlgebraLineal(tk.Tk):
 
     def __init__(self):
         super().__init__()
+        # Define el tamaño de la ventana y aplica el estilo compartido.
         self.title("Calculadora de Álgebra Lineal")
         self.geometry("1040x720")
         self.minsize(920, 640)
@@ -38,6 +49,7 @@ class CalculadoraAlgebraLineal(tk.Tk):
         self._construir_interfaz()
 
     def _construir_interfaz(self):
+        # Crea el encabezado y agrega cada módulo como una pestaña.
         contenedor = ttk.Frame(self, padding=14)
         contenedor.pack(fill="both", expand=True)
 

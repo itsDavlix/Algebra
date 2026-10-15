@@ -6,6 +6,7 @@ from nucleo.matrices import dimensiones
 TOLERANCIA = 1e-8
 
 
+# Compara resultados con una tolerancia para absorber diferencias de redondeo.
 def numeros_aproximadamente_iguales(a, b, tolerancia=TOLERANCIA):
     """Compara dos números finitos admitiendo pequeños errores de redondeo."""
     a = asegurar_finito(a, "Primer valor de la comprobación")

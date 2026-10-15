@@ -26,6 +26,7 @@ class PestanaEcuaciones(ttk.Frame):
         self._construir_resultado()
 
     def _construir_entrada(self):
+        # Recibe A, B y una posible solución X para resolver o comprobar.
         marco = ttk.LabelFrame(self, text="Resolver A · X = B", style="Seccion.TLabelframe", padding=12)
         marco.grid(row=0, column=0, sticky="nsew", padx=(0, 7))
 
@@ -53,6 +54,7 @@ class PestanaEcuaciones(ttk.Frame):
         ttk.Button(fila_botones, text="Limpiar", command=self._limpiar).pack(side="left", padx=(6, 0))
 
     def _construir_resultado(self):
+        # El procedimiento puede ser largo, por eso se muestra en un área desplazable.
         marco = ttk.LabelFrame(self, text="Resultado y procedimiento paso a paso", style="Seccion.TLabelframe", padding=12)
         marco.grid(row=0, column=1, sticky="nsew", padx=(7, 0))
         marco_resultado, self.txt_resultado = crear_area_resultado(marco, alto=24)
@@ -60,6 +62,7 @@ class PestanaEcuaciones(ttk.Frame):
 
     def _accion_resolver(self):
         try:
+            # Resuelve A·X=B y verifica que la solución reproduzca B.
             a = leer_matriz(self.txt_a.get("1.0", "end"), "matriz A")
             b = leer_matriz(self.txt_b.get("1.0", "end"), "matriz B")
             solucion, tipo, pivotes, pasos = resolver_sistema_gauss_jordan_con_pasos(a, b)
@@ -93,6 +96,7 @@ class PestanaEcuaciones(ttk.Frame):
 
     def _accion_evaluar(self):
         try:
+            # Multiplica la X ingresada por A y compara cada entrada con B.
             a = leer_matriz(self.txt_a.get("1.0", "end"), "matriz A")
             b = leer_matriz(self.txt_b.get("1.0", "end"), "matriz B")
             x = leer_matriz(self.txt_x.get("1.0", "end"), "matriz X")

@@ -12,6 +12,7 @@ class ErrorSistemaIncompatible(ValueError):
         self.pasos = pasos or []
 
 
+# Reduce la matriz aumentada y registra las operaciones de fila realizadas.
 def resolver_sistema_gauss_jordan_con_pasos(a, b):
     """Resuelve A·X=B por Gauss-Jordan y retorna también el procedimiento completo."""
     filas_a, columnas_a = dimensiones(a)
@@ -33,6 +34,7 @@ def resolver_sistema_gauss_jordan_con_pasos(a, b):
     ]
     numero_paso = 2
 
+    # Busca pivotes y los intercambia para evitar dividir por valores nulos.
     for columna in range(columnas_a):
         mejor_fila, mejor_valor = None, 0.0
         for i in range(fila_pivote, filas_a):
@@ -101,6 +103,7 @@ def resolver_sistema_gauss_jordan_con_pasos(a, b):
         if fila_pivote == filas_a:
             break
 
+    # Una fila 0 = valor no nulo demuestra que el sistema es incompatible.
     for fila in aumentada:
         if all(abs(valor) <= EPSILON for valor in fila[:columnas_a]):
             if any(abs(valor) > EPSILON for valor in fila[columnas_a:]):
@@ -113,6 +116,7 @@ def resolver_sistema_gauss_jordan_con_pasos(a, b):
                     pasos,
                 )
 
+    # Coloca cada resultado en la variable correspondiente a su columna pivote.
     solucion = [[0.0] * columnas_b for _ in range(columnas_a)]
     for indice_fila, columna_variable in enumerate(columnas_pivote):
         for j in range(columnas_b):
@@ -150,6 +154,7 @@ def verificar_combinacion_lineal_con_pasos(generadores, objetivo):
                 "la misma cantidad de componentes."
             )
 
+    # Cada generador pasa a ser una columna del sistema A·c = objetivo.
     a = [[vector[i] for vector in generadores] for i in range(dimension)]
     b = [[valor] for valor in objetivo]
 

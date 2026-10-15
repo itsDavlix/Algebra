@@ -28,6 +28,7 @@ class PestanaVectores(ttk.Frame):
         self._construir_combinacion_lineal()
 
     def _construir_operaciones(self):
+        # Entradas, escalar y acciones para suma, resta y multiplicación.
         marco = ttk.LabelFrame(self, text="Operaciones con vectores", style="Seccion.TLabelframe", padding=12)
         marco.grid(row=0, column=0, sticky="nsew", padx=(0, 7))
 
@@ -63,6 +64,7 @@ class PestanaVectores(ttk.Frame):
 
     def _accion_suma(self):
         try:
+            # Suma componente a componente y comprueba el resultado con una resta.
             v1 = leer_vector(self.ent_v1.get(), "V1")
             v2 = leer_vector(self.ent_v2.get(), "V2")
             resultado = sumar_vectores(v1, v2)
@@ -86,6 +88,7 @@ class PestanaVectores(ttk.Frame):
 
     def _accion_resta(self):
         try:
+            # Resta componente a componente y verifica que sumar V2 recupere V1.
             v1 = leer_vector(self.ent_v1.get(), "V1")
             v2 = leer_vector(self.ent_v2.get(), "V2")
             resultado = restar_vectores(v1, v2)
@@ -109,6 +112,7 @@ class PestanaVectores(ttk.Frame):
 
     def _accion_escalar(self):
         try:
+            # Multiplica cada componente y comprueba el resultado según el escalar.
             v1 = leer_vector(self.ent_v1.get(), "V1")
             escalar = convertir_numero(self.ent_escalar.get())
             resultado = multiplicar_vector_escalar(v1, escalar)
@@ -150,6 +154,7 @@ class PestanaVectores(ttk.Frame):
         mostrar_texto(self.txt_resultado, "")
 
     def _construir_combinacion_lineal(self):
+        # Recibe los generadores y el vector que se quiere expresar con ellos.
         marco = ttk.LabelFrame(self, text="¿Es combinación lineal?", style="Seccion.TLabelframe", padding=12)
         marco.grid(row=0, column=1, sticky="nsew", padx=(7, 0))
 
@@ -175,6 +180,7 @@ class PestanaVectores(ttk.Frame):
 
     def _accion_combinacion_lineal(self):
         try:
+            # Resuelve los coeficientes y sustituye la respuesta para comprobarla.
             lineas = self.txt_generadores.get("1.0", "end").strip().splitlines()
             generadores = [leer_vector(linea, f"vector generador {i}") for i, linea in enumerate(lineas, 1) if linea.strip()]
             objetivo = leer_vector(self.ent_objetivo.get(), "vector objetivo")

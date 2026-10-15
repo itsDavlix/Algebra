@@ -3,6 +3,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 
 
+# Actualiza áreas de salida que pueden estar bloqueadas para edición.
 def mostrar_texto(caja, texto):
     """Reemplaza de forma segura el contenido de un Text usado como salida."""
     estado_anterior = str(caja.cget("state"))
