@@ -180,15 +180,27 @@ def _matriz_texto(matriz):
     return "\n".join("│ " + "  ".join(c.rjust(ancho) for c in fila) + " │" for fila in celdas)
 
 
+def _explicar_determinante_menor(menor, valor):
+    """Muestra la cuenta explícita cuando el menor es de orden uno o dos."""
+    if len(menor) == 1:
+        return f"det(M) = {_texto(menor[0][0])}"
+    if len(menor) == 2:
+        return (
+            f"det(M) = ({_texto(menor[0][0])})·({_texto(menor[1][1])}) − "
+            f"({_texto(menor[0][1])})·({_texto(menor[1][0])}) = {_texto(valor)}"
+        )
+    return f"det(M) = {_texto(valor)} (calculado recursivamente por cofactores)"
+
+
 def _pasos_cofactores(matriz):
-    """Describe la expansión, mostrando los menores de tamaño manejable."""
+    """Explica la expansión y desarrolla por completo los menores 2×2."""
     a = _preparar(matriz)
     expandir = _crear_expansor_cofactores()
     n = len(a)
     if n <= 2:
         valor_total = expandir(a)
         if n == 1:
-            formula = "det(A) = a₁₁"
+            formula = f"det(A) = a₁₁ = {_texto(a[0][0])}"
         else:
             formula = (
                 f"det(A) = a₁₁·a₂₂ − a₁₂·a₂₁ = "
@@ -200,6 +212,8 @@ def _pasos_cofactores(matriz):
     expandir(a)
     # Se repite el criterio de determinante_cofactores: fila con más ceros.
     fila = max(range(n), key=lambda i: a[i].count(0))
+    cantidad_ceros = a[fila].count(0)
+    texto_ceros = "cero" if cantidad_ceros == 1 else "ceros"
     terminos, lineas = [], []
     for columna, elemento in enumerate(a[fila]):
         if elemento == 0:
@@ -209,6 +223,7 @@ def _pasos_cofactores(matriz):
         signo = (-1) ** (fila + columna)
         termino = signo * elemento * det_menor
         terminos.append(termino)
+        cofactor = signo * det_menor
         detalle_menor = (
             "\n" + _matriz_texto(menor)
             if len(menor) <= 6
@@ -216,62 +231,100 @@ def _pasos_cofactores(matriz):
         )
         signo_texto = "+" if signo > 0 else "−"
         lineas.append(
-            f"a[{fila + 1},{columna + 1}] = {_texto(elemento)}; "
-            f"M[{fila + 1},{columna + 1}] ={detalle_menor}\n"
-            f"det(M) = {_texto(det_menor)}; "
-            f"término = ({signo_texto})·({_texto(elemento)})·"
-            f"({_texto(det_menor)}) = {_texto(termino)}"
+            f"Elemento a[{fila + 1},{columna + 1}] = {_texto(elemento)}.\n"
+            f"Menor M[{fila + 1},{columna + 1}] ={detalle_menor}\n"
+            f"Cofactor C[{fila + 1},{columna + 1}] = "
+            f"({signo_texto}1)·det(M) = ({signo_texto}1)·"
+            f"({_texto(det_menor)}) = {_texto(cofactor)}.\n"
+            f"Término a·C = ({_texto(elemento)})·({_texto(cofactor)}) "
+            f"= {_texto(termino)}.\n"
+            f"{_explicar_determinante_menor(menor, det_menor)}"
         )
     total = sum(terminos, Fraction(0))
     return total, [
-        f"PASO 2. Se expande por la fila {fila + 1} (la que tiene más ceros).\n"
-        "Los elementos nulos se omiten porque no aportan términos.",
-        "PASO 3. Términos aᵢⱼ·(−1)ⁱ⁺ʲ·det(Mᵢⱼ):\n" + "\n".join(lineas or ["(todos los elementos son cero)"]),
-        "PASO 4. Suma de los términos = " + (" + ".join(_texto(t) for t in terminos) or "0")
+        f"PASO 2. Elegir la fila {fila + 1}, que contiene {cantidad_ceros} {texto_ceros} "
+        "y reduce la cantidad de términos.",
+        "PASO 3. Aplicar la expansión por cofactores:\n"
+        f"det(A) = Σⱼ a[{fila + 1},j]·C[{fila + 1},j], "
+        "donde C[i,j] = (−1)^(i+j)·det(M[i,j]).\n"
+        "El signo alterna según la posición; los elementos cero aportan cero.\n\n"
+        + "\n\n".join(lineas or ["Todos los elementos de la fila elegida son cero."]),
+        "PASO 4. Sumar los términos obtenidos:\n"
+        + (" + ".join(f"({_texto(t)})" for t in terminos) or "0")
         + f" = {_texto(total)}",
     ]
 
 
 def _pasos_lu(matriz):
-    """Describe cada columna de la eliminación: pivote, intercambio y multiplicadores."""
+    """Explica pivotes, intercambios y operaciones elementales de la eliminación LU."""
     u = _preparar(matriz)
     n = len(u)
     signo, pasos = 1, []
+    pasos.append(
+        "PASO 2. Iniciar la eliminación por filas.\n"
+        "En cada columna se elige como pivote el elemento de mayor valor absoluto "
+        "entre las filas restantes. Este proceso equivale a PA = LU; como L tiene "
+        "diagonal de unos, det(L) = 1.\n\nU inicial =\n" + _matriz_texto(u)
+    )
     for columna in range(n):
         pivote = max(range(columna, n), key=lambda i: abs(u[i][columna]))
         if u[pivote][columna] == 0:
-            pasos.append(f"PASO {columna + 2}. Columna {columna + 1} sin pivote (todo cero): "
-                         "la matriz es singular y det(A) = 0.")
+            pasos.append(
+                f"Columna {columna + 1}: todas las entradas disponibles son cero. "
+                "No existe pivote, por lo tanto la matriz es singular y det(A) = 0."
+            )
             return Fraction(0), pasos
-        texto = f"PASO {columna + 2}. Columna {columna + 1}: pivote {_texto(u[pivote][columna])}"
+        texto = (
+            f"PASO {columna + 3}. Columna {columna + 1}: el pivote elegido es "
+            f"U[{pivote + 1},{columna + 1}] = {_texto(u[pivote][columna])}, "
+            "el de mayor valor absoluto en esta columna."
+        )
         if pivote != columna:
             u[columna], u[pivote] = u[pivote], u[columna]
             signo *= -1
-            texto += f" (se intercambian las filas {columna + 1} y {pivote + 1}; el signo cambia)"
-        multiplicadores = []
+            texto += (
+                f"\nIntercambiar F{columna + 1} ↔ F{pivote + 1}. "
+                f"Cada intercambio cambia el signo: s = {signo}.\n"
+                "U después del intercambio =\n" + _matriz_texto(u)
+            )
+        operaciones = []
         for fila in range(columna + 1, n):
             factor = u[fila][columna] / u[columna][columna]
-            multiplicadores.append(f"l[{fila + 1},{columna + 1}] = {_texto(factor)}")
+            if factor == 0:
+                continue
+            valor_eliminado = u[fila][columna]
+            operaciones.append(
+                f"F{fila + 1} ← F{fila + 1} − "
+                f"({_texto(factor)})F{columna + 1}; "
+                f"{_texto(valor_eliminado)} − "
+                f"({_texto(factor)})({_texto(u[columna][columna])}) = 0."
+            )
             u[fila][columna] = Fraction(0)
             for j in range(columna + 1, n):
                 u[fila][j] -= factor * u[columna][j]
-        if multiplicadores:
+            if n <= 8:
+                operaciones[-1] += "\nU después de la operación =\n" + _matriz_texto(u)
+        texto += "\n" + (
+            "\n".join(operaciones)
+            if operaciones else "No hay elementos debajo del pivote que deban eliminarse."
+        )
+        if n > 8 and operaciones:
             texto += (
-                "\nMultiplicadores: " + ", ".join(multiplicadores)
-                if n <= 10
-                else f"\nSe anulan las {len(multiplicadores)} entradas debajo del pivote."
+                f"\nSe aplicaron {len(operaciones)} operaciones de fila en esta columna; "
+                "se omiten las matrices intermedias por tamaño."
             )
-        if n <= 8:
-            texto += "\nU parcial =\n" + _matriz_texto(u)
-        else:
-            texto += "\nU parcial omitida para mantener legible la salida de una matriz grande."
         pasos.append(texto)
     diagonal = [u[i][i] for i in range(n)]
     resultado = Fraction(signo)
     for d in diagonal:
         resultado *= d
-    pasos.append(f"PASO {n + 2}. det(A) = {signo} · "
-                 + " · ".join(_texto(d) for d in diagonal) + f" = {_texto(resultado)}")
+    pasos.append(
+        "PASO FINAL. La matriz quedó triangular superior, por lo que su determinante "
+        "es el producto de la diagonal. Se corrige por el signo de los intercambios:\n"
+        f"det(A) = s·∏uᵢᵢ = ({signo})·"
+        + "·".join(_texto(d) for d in diagonal)
+        + f" = {_texto(resultado)}."
+    )
     return resultado, pasos
 
 
@@ -280,7 +333,11 @@ def determinante_con_pasos(matriz, metodo):
     if metodo not in ("cofactores", "lu"):
         raise ValueError("Seleccioná cofactores o LU.")
     n, _ = dimensiones(matriz)
-    pasos = ["PASO 1. La matriz es cuadrada de orden " + str(n) + "; se puede calcular el determinante."]
+    pasos = [
+        "PASO 1. Validar que A sea cuadrada.\n"
+        f"A tiene {n} filas y {n} columnas; por lo tanto, el determinante está definido.\n\n"
+        "A =\n" + _matriz_texto(_preparar(matriz))
+    ]
     valor, detalle = _pasos_cofactores(matriz) if metodo == "cofactores" else _pasos_lu(matriz)
     pasos += detalle
 

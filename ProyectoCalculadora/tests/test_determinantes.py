@@ -94,13 +94,32 @@ class PruebasEficienciaYValidacion(unittest.TestCase):
         _, pasos_cofactores, _ = determinante_con_pasos(matriz_cofactores, 'cofactores')
         detalle = '\n'.join(pasos_cofactores)
         self.assertIn('M[1,2]', detalle)
-        self.assertIn('término =', detalle)
+        self.assertIn('Término a·C =', detalle)
+        self.assertIn('det(M) = (1)·(1) − (0)·(3) = 1', detalle)
+        self.assertIn('(-2) + (-3) = -5', detalle)
 
         _, pasos_lu, comprobacion = determinante_con_pasos([[0, 1], [1, 0]], 'lu')
         detalle_lu = '\n'.join(pasos_lu)
-        self.assertIn('se intercambian las filas', detalle_lu)
-        self.assertIn('det(A) = -1 ·', detalle_lu)
+        self.assertIn('Intercambiar F1 ↔ F2', detalle_lu)
+        self.assertIn('det(A) = s·∏uᵢᵢ = (-1)·1·1 = -1', detalle_lu)
         self.assertIn('✓', comprobacion)
+
+        _, pasos_eliminacion, _ = determinante_con_pasos([[2, 1], [4, 3]], 'lu')
+        self.assertIn('F2 ← F2 − (1/2)F1', '\n'.join(pasos_eliminacion))
+
+    def test_pasos_completos_para_matriz_3x3(self):
+        matriz = [[0, 2, 1], [1, 1, 0], [3, 0, 1]]
+        for metodo in ('cofactores', 'lu'):
+            with self.subTest(metodo=metodo):
+                valor, pasos, comprobacion = determinante_con_pasos(matriz, metodo)
+                texto = '\n'.join(pasos)
+                self.assertEqual(valor, -5)
+                self.assertIn('PASO 1.', texto)
+                if metodo == 'lu':
+                    self.assertIn('PASO FINAL.', texto)
+                else:
+                    self.assertIn('PASO 4.', texto)
+                self.assertIn('✓', comprobacion)
 
     def test_resumen_eficiencia(self):
         """La recomendación previa depende del orden y muestra ambos costos."""
