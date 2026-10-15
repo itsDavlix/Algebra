@@ -2,8 +2,9 @@
 
 from fractions import Fraction
 from math import factorial
+from decimal import Decimal, localcontext
 from nucleo.matrices import dimensiones, leer_matriz
-from nucleo.numeros import asegurar_finito
+from nucleo.numeros import asegurar_finito, limpiar_numero
 
 
 # La cota limita el trabajo factorial sin impedir matrices grandes con muchos ceros.
@@ -169,8 +170,20 @@ def resumen_eficiencia(matriz):
 
 
 def _texto(valor):
-    """Escribe un racional como entero o fracción a/b, sin decimales ocultos."""
-    return str(valor.numerator) if valor.denominator == 1 else f"{valor.numerator}/{valor.denominator}"
+    """Escribe racionales como enteros o decimales breves, nunca como fracciones."""
+    if valor.denominator == 1:
+        return str(valor.numerator)
+    try:
+        return limpiar_numero(valor.numerator / valor.denominator)
+    except (OverflowError, ValueError):
+        # El cálculo sigue siendo exacto; Decimal permite mostrar razones
+        # enormes sin convertirlas primero a un float que podría desbordarse.
+        with localcontext() as contexto:
+            contexto.prec = 12
+            return format(
+                Decimal(valor.numerator) / Decimal(valor.denominator),
+                ".6g",
+            )
 
 
 def _matriz_texto(matriz):

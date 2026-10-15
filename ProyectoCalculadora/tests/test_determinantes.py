@@ -105,7 +105,9 @@ class PruebasEficienciaYValidacion(unittest.TestCase):
         self.assertIn('✓', comprobacion)
 
         _, pasos_eliminacion, _ = determinante_con_pasos([[2, 1], [4, 3]], 'lu')
-        self.assertIn('F2 ← F2 − (1/2)F1', '\n'.join(pasos_eliminacion))
+        detalle_eliminacion = '\n'.join(pasos_eliminacion)
+        self.assertIn('F2 ← F2 − (0.5)F1', detalle_eliminacion)
+        self.assertNotIn('(1/2)', detalle_eliminacion)
 
     def test_pasos_completos_para_matriz_3x3(self):
         matriz = [[0, 2, 1], [1, 1, 0], [3, 0, 1]]
