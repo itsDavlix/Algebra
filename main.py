@@ -16,6 +16,7 @@ from interfaz.pestanaInicio import PestanaInicio
 from interfaz.pestanaVectores import PestanaVectores
 from interfaz.pestanaMatrices import PestanaMatrices
 from interfaz.pestanaEcuaciones import PestanaEcuaciones
+from interfaz.pestanaBiseccion import PestanaBiseccion
 from interfaz.pestanaRomanos import PestanaRomanos
 from interfaz.programaAnterior import PestanaProgramaAnterior
 
@@ -31,6 +32,7 @@ Características:
 - Verificación de combinación lineal.
 - Operaciones con matrices, incluyendo matriz inversa.
 - Resolución y evaluación de ecuaciones matriciales A·X = B.
+- Resolución de ecuaciones de una variable por el método de bisección.
 - Operaciones con números romanos.
 - Comprobaciones automáticas de resultados con tolerancia numérica.
 - Opción para ejecutar un programa .py elaborado anteriormente."""
@@ -67,6 +69,7 @@ class CalculadoraAlgebraLineal(tk.Tk):
         notebook.add(PestanaVectores(notebook), text="Vectores")
         notebook.add(PestanaMatrices(notebook), text="Matrices")
         notebook.add(PestanaEcuaciones(notebook), text="Ecuaciones A·X = B")
+        notebook.add(PestanaBiseccion(notebook), text="Bisección")
         notebook.add(PestanaRomanos(notebook), text="Números romanos")
         notebook.add(PestanaProgramaAnterior(notebook), text="Programa anterior")
 
