@@ -50,6 +50,7 @@ class PruebasAccionesBiseccion(unittest.TestCase):
     @patch("interfaz.pestanaBiseccion.mostrar_texto")
     def test_ejemplo_resuelve_desde_los_campos(self, mostrar, error):
         self.pestana._cargar_ejemplo()
+        self.pestana.var_continuidad.set(True)
         self.pestana._accion_resolver()
         salida = mostrar.call_args.args[1]
         self.assertIn("convergencia alcanzada", salida)
@@ -66,6 +67,7 @@ class PruebasAccionesBiseccion(unittest.TestCase):
     @patch("interfaz.pestanaBiseccion.mostrar_texto")
     def test_tabla_despliega_calculos_y_decision_de_cada_iteracion(self, mostrar, error):
         self.pestana._cargar_ejemplo()
+        self.pestana.var_continuidad.set(True)
         self.pestana._accion_resolver()
 
         inserts = self.pestana.tabla_iteraciones.insert.call_args_list
@@ -148,7 +150,9 @@ class PruebasAccionesBiseccion(unittest.TestCase):
 
     def test_editar_ecuacion_o_intervalo_requiere_confirmar_continuidad_de_nuevo(self):
         self.pestana._cargar_ejemplo()
-        self.assertTrue(self.pestana.var_continuidad.get())
+        self.assertFalse(self.pestana.var_continuidad.get())
+
+        self.pestana.var_continuidad.set(True)
 
         self.pestana.var_ecuacion.set("x^2 - 2")
         self.assertFalse(self.pestana.var_continuidad.get())

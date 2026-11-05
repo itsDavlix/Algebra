@@ -231,19 +231,9 @@ class PestanaBiseccion(ttk.Frame):
         self.var_b = tk.StringVar(self)
         self.var_tolerancia = tk.StringVar(self)
         self.var_iteraciones = tk.StringVar(self)
-        self.var_continuidad = tk.BooleanVar(self, value=False)
-        self._cargando_ejemplo = False
         self._construir_entrada()
         self._construir_resultado()
         self._cargar_ejemplo()
-        for variable in (self.var_ecuacion, self.var_a, self.var_b):
-            variable.trace_add("write", self._desmarcar_continuidad)
-
-    def _desmarcar_continuidad(self, *_):
-        """Obliga a confirmar de nuevo si cambia la función o el intervalo."""
-        if not self._cargando_ejemplo:
-            self.var_continuidad.set(False)
-
     def _construir_entrada(self):
         """Crea los campos y las ayudas para ingresar la función y sus parámetros."""
         marco = ttk.LabelFrame(self, text="Resolver f(x) = 0", style="Seccion.TLabelframe", padding=12)
@@ -294,11 +284,6 @@ class PestanaBiseccion(ttk.Frame):
             "signos opuestos en los extremos (o una raíz en un extremo).",
             style="Ayuda.TLabel", justify="left", wraplength=320,
         ).pack(anchor="w", pady=(14, 8))
-        ttk.Checkbutton(
-            marco,
-            text="Confirmo que f(x) es continua en todo [a, b]",
-            variable=self.var_continuidad,
-        ).pack(anchor="w", pady=(0, 7))
         ttk.Label(
             marco, text="Usa * para multiplicar, ^ o ** para potencias y punto decimal. "
             "Funciones: sin/sen, cos, tan, sqrt/raiz, exp, log/ln (natural), log10 y abs. "
@@ -601,11 +586,6 @@ class PestanaBiseccion(ttk.Frame):
         """Valida las entradas, ejecuta bisección y actualiza las tres vistas."""
         try:
             # Valida los campos antes de ejecutar el método y actualizar la vista.
-            if not self.var_continuidad.get():
-                raise ValueError(
-                    "Confirma que la función es continua en todo el intervalo [a, b]. "
-                    "La continuidad es un requisito de bisección y no puede comprobarse automáticamente."
-                )
             a = convertir_numero(self.var_a.get(), "El extremo a")
             b = convertir_numero(self.var_b.get(), "El extremo b")
             tolerancia = convertir_numero(self.var_tolerancia.get(), "La tolerancia")
@@ -645,7 +625,6 @@ class PestanaBiseccion(ttk.Frame):
         self.var_b.set(f"{ajuste.b:.12g}")
         self.var_tolerancia.set(f"{ajuste.tolerancia:.12g}")
         self.var_iteraciones.set(str(ajuste.max_iteraciones))
-        self.var_continuidad.set(False)
         self.resultado_biseccion = None
         self.funcion_grafica = None
         self._actualizar_tabla_iteraciones_vacia()
@@ -679,17 +658,12 @@ class PestanaBiseccion(ttk.Frame):
         )
 
     def _cargar_ejemplo(self):
-        """Rellena un caso conocido sin activar el reinicio automático de continuidad."""
-        self._cargando_ejemplo = True
-        try:
-            self.var_ecuacion.set("x^3 - x - 2 = 0")
-            self.var_a.set("1")
-            self.var_b.set("2")
-            self.var_tolerancia.set("1e-6")
-            self.var_iteraciones.set("100")
-            self.var_continuidad.set(True)
-        finally:
-            self._cargando_ejemplo = False
+        """Rellena un caso conocido en los campos de entrada."""
+        self.var_ecuacion.set("x^3 - x - 2 = 0")
+        self.var_a.set("1")
+        self.var_b.set("2")
+        self.var_tolerancia.set("1e-6")
+        self.var_iteraciones.set("100")
         self.resultado_biseccion = None
         self.funcion_grafica = None
         self._actualizar_tabla_iteraciones_vacia()
@@ -703,7 +677,6 @@ class PestanaBiseccion(ttk.Frame):
             variable.set("")
         self.var_tolerancia.set("1e-6")
         self.var_iteraciones.set("100")
-        self.var_continuidad.set(False)
         self.resultado_biseccion = None
         self.funcion_grafica = None
         self._actualizar_tabla_iteraciones_vacia()
