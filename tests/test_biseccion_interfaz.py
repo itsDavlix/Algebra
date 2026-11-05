@@ -15,8 +15,17 @@ class PruebasAccionesBiseccion(unittest.TestCase):
         self.pestana = PestanaBiseccion.__new__(PestanaBiseccion)
         for nombre in ("ecuacion", "a", "b", "tolerancia", "iteraciones"):
             setattr(self.pestana, "var_" + nombre, tk.StringVar(self.tcl))
+        self.pestana.var_continuidad = tk.BooleanVar(self.tcl, value=False)
+        self.pestana._cargando_ejemplo = False
+        for variable in (
+            self.pestana.var_ecuacion, self.pestana.var_a, self.pestana.var_b,
+        ):
+            variable.trace_add("write", self.pestana._desmarcar_continuidad)
         self.pestana.txt_resultado = Mock()
         self.pestana.entrada_ecuacion = Mock()
+        self.pestana.tabla_iteraciones = Mock()
+        self.pestana.tabla_iteraciones.get_children.return_value = ()
+        self.pestana.iteraciones_expandidas = False
         self.pestana.canvas_grafica = Mock()
         self.pestana.canvas_grafica.winfo_width.return_value = 500
         self.pestana.canvas_grafica.winfo_height.return_value = 210
@@ -29,9 +38,74 @@ class PruebasAccionesBiseccion(unittest.TestCase):
         salida = mostrar.call_args.args[1]
         self.assertIn("convergencia alcanzada", salida)
         self.assertIn("x ≈ 1.52138", salida)
-        self.assertIn("ITERACIÓN 20", salida)
+        self.assertIn("Iteraciones: 20", salida)
         error.assert_not_called()
-        self.assertEqual(self.pestana.canvas_grafica.create_oval.call_count, 2)
+        self.assertEqual(self.pestana.canvas_grafica.create_oval.call_count, 4)
+        self.assertEqual(self.pestana.tabla_iteraciones.insert.call_count, 20 * 7)
+        for llamada in self.pestana.tabla_iteraciones.insert.call_args_list:
+            if "values" in llamada.kwargs:
+                self.assertEqual(len(llamada.kwargs["values"]), 5)
+
+    @patch("interfaz.pestanaBiseccion.mostrar_error")
+    @patch("interfaz.pestanaBiseccion.mostrar_texto")
+    def test_tabla_despliega_calculos_y_decision_de_cada_iteracion(self, mostrar, error):
+        self.pestana._cargar_ejemplo()
+        self.pestana._accion_resolver()
+
+        inserts = self.pestana.tabla_iteraciones.insert.call_args_list
+        raiz = next(
+            llamada for llamada in inserts
+            if llamada.kwargs.get("iid") == "iteracion-1"
+        )
+        detalles = [
+            llamada.kwargs["text"] for llamada in inserts
+            if llamada.args and llamada.args[0] == "iteracion-1"
+        ]
+        self.assertFalse(raiz.kwargs["open"])
+        self.assertEqual(
+            detalles,
+            [
+                "Punto medio: c = (a+b)/2",
+                "Evaluación: f(a) = -2",
+                "Evaluación: f(b) = 4",
+                "Evaluación: f(c) = -0.125",
+                "Cota: max(c-a, b-c)",
+                "Decisión: conservar [c, b]",
+            ],
+        )
+        self.assertIn("fila_par", raiz.kwargs["tags"])
+        ultima_decision = next(
+            llamada for llamada in inserts
+            if llamada.kwargs.get("text", "").startswith("Parada:")
+        )
+        self.assertIn("parada_ok", ultima_decision.kwargs["tags"])
+        error.assert_not_called()
+
+    def test_vista_completa_oculta_y_restaura_el_resto_del_panel(self):
+        for nombre in (
+            "marco_entrada", "marco_resultado", "etiqueta_grafica", "area_resumen",
+            "procedimiento", "boton_expandir",
+        ):
+            setattr(self.pestana, nombre, Mock())
+        self.pestana._redibujar_grafica = Mock()
+
+        self.pestana._alternar_vista_iteraciones()
+
+        self.assertTrue(self.pestana.iteraciones_expandidas)
+        self.pestana.marco_entrada.grid_remove.assert_called_once()
+        self.pestana.etiqueta_grafica.grid_remove.assert_called_once()
+        self.pestana.area_resumen.grid_remove.assert_called_once()
+        self.pestana.marco_resultado.grid_configure.assert_called_once()
+        self.pestana.boton_expandir.configure.assert_called_with(text="Volver al resultado")
+
+        self.pestana._alternar_vista_iteraciones()
+
+        self.assertFalse(self.pestana.iteraciones_expandidas)
+        self.pestana.marco_entrada.grid.assert_called_once()
+        self.pestana.etiqueta_grafica.grid.assert_called_once()
+        self.pestana.area_resumen.grid.assert_called_once()
+        self.pestana._redibujar_grafica.assert_called_once()
+        self.pestana.boton_expandir.configure.assert_called_with(text="Ver tabla completa")
 
     @patch("interfaz.pestanaBiseccion.mostrar_error")
     @patch("interfaz.pestanaBiseccion.mostrar_texto")
@@ -44,6 +118,29 @@ class PruebasAccionesBiseccion(unittest.TestCase):
                 self.assertIn("No se pudo resolver", mostrar.call_args.args[1])
                 self.assertIn("entero entre 1 y 1000", str(error.call_args.args[0]))
 
+    @patch("interfaz.pestanaBiseccion.mostrar_error")
+    @patch("interfaz.pestanaBiseccion.mostrar_texto")
+    def test_exige_confirmar_continuidad(self, mostrar, error):
+        self.pestana._cargar_ejemplo()
+        self.pestana.var_continuidad.set(False)
+
+        self.pestana._accion_resolver()
+
+        self.assertIn("Confirma que la función es continua", mostrar.call_args.args[1])
+        self.assertIn("no puede comprobarse automáticamente", str(error.call_args.args[0]))
+        self.pestana.tabla_iteraciones.insert.assert_not_called()
+
+    def test_editar_ecuacion_o_intervalo_requiere_confirmar_continuidad_de_nuevo(self):
+        self.pestana._cargar_ejemplo()
+        self.assertTrue(self.pestana.var_continuidad.get())
+
+        self.pestana.var_ecuacion.set("x^2 - 2")
+        self.assertFalse(self.pestana.var_continuidad.get())
+
+        self.pestana.var_continuidad.set(True)
+        self.pestana.var_a.set("1.1")
+        self.assertFalse(self.pestana.var_continuidad.get())
+
     def test_grafica_muestra_curva_y_raiz_aproximada(self):
         lienzo = Mock()
         lienzo.winfo_width.return_value = 500
@@ -54,10 +151,26 @@ class PruebasAccionesBiseccion(unittest.TestCase):
         dibujar_grafica_biseccion(lienzo, funcion, 1, 2, resultado)
 
         self.assertGreater(lienzo.create_line.call_count, 100)
-        self.assertEqual(lienzo.create_oval.call_count, 2)
+        self.assertEqual(lienzo.create_oval.call_count, 4)
+        self.assertEqual(lienzo.create_rectangle.call_count, 1)
         textos = [call.kwargs.get("text", "") for call in lienzo.create_text.call_args_list]
         self.assertTrue(any("x**2 - 2" in texto for texto in textos))
         self.assertTrue(any("raíz ≈" in texto for texto in textos))
+        self.assertTrue(any("cambio de signo comprobado" in texto for texto in textos))
+        self.assertTrue(any("no puede certificar continuidad" in texto for texto in textos))
+
+    def test_grafica_indica_raiz_exacta_en_extremo(self):
+        lienzo = Mock()
+        lienzo.winfo_width.return_value = 500
+        lienzo.winfo_height.return_value = 210
+        funcion, _ = preparar_funcion("x - 2")
+        resultado = resolver_biseccion("x - 2", 2, 3)
+
+        dibujar_grafica_biseccion(lienzo, funcion, 2, 3, resultado)
+
+        textos = [call.kwargs.get("text", "") for call in lienzo.create_text.call_args_list]
+        self.assertTrue(any("Raíz exacta en el extremo a" in texto for texto in textos))
+        self.assertEqual(lienzo.create_rectangle.call_count, 0)
 
     def test_grafica_maneja_intervalos_con_salto_de_dominio(self):
         lienzo = Mock()
@@ -73,6 +186,8 @@ class PruebasAccionesBiseccion(unittest.TestCase):
         ]
         self.assertGreater(len(trazos_curva), 100)
         self.assertLess(len(trazos_curva), 400)
+        textos = [call.kwargs.get("text", "") for call in lienzo.create_text.call_args_list]
+        self.assertTrue(any("muestras no evaluables" in texto for texto in textos))
 
     def test_grafica_funciona_con_intervalos_que_exceden_el_rango_decimal(self):
         lienzo = Mock()
@@ -83,7 +198,7 @@ class PruebasAccionesBiseccion(unittest.TestCase):
 
         dibujar_grafica_biseccion(lienzo, funcion, -1.7e308, 1.7e308, resultado)
 
-        self.assertEqual(lienzo.create_oval.call_count, 2)
+        self.assertEqual(lienzo.create_oval.call_count, 4)
 
     @patch("interfaz.pestanaBiseccion.mostrar_texto")
     def test_limpiar_y_recargar(self, mostrar):
@@ -92,6 +207,7 @@ class PruebasAccionesBiseccion(unittest.TestCase):
         self.assertEqual(self.pestana.var_ecuacion.get(), "")
         self.assertEqual(self.pestana.var_a.get(), "")
         self.assertEqual(self.pestana.var_b.get(), "")
+        self.assertFalse(self.pestana.var_continuidad.get())
         self.assertEqual(mostrar.call_args.args[1], "")
         self.pestana.entrada_ecuacion.focus_set.assert_called_once()
         self.pestana._cargar_ejemplo()
