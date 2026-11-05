@@ -4,8 +4,124 @@ import tkinter as tk
 from tkinter import ttk
 
 from interfaz.ayudas import crear_area_resultado, mostrar_error, mostrar_texto
-from nucleo.biseccion import MAX_ITERACIONES, formatear_resultado_biseccion, resolver_biseccion
+from interfaz.estilos import AZUL, AZUL_BORDE, TEXTO, TEXTO_SUAVE, VERDE
+from nucleo.biseccion import (
+    MAX_ITERACIONES, formatear_resultado_biseccion, preparar_funcion, resolver_biseccion,
+)
 from nucleo.numeros import convertir_numero
+
+
+def _interpolar_x(a, b, proporcion):
+    diferencia = b - a
+    if diferencia == float("inf"):
+        return a * (1 - proporcion) + b * proporcion
+    return a + diferencia * proporcion
+
+
+def _proporcion_x(x, a, b):
+    diferencia = b - a
+    if diferencia == float("inf"):
+        return (x / 2 - a / 2) / (b / 2 - a / 2)
+    return (x - a) / diferencia
+
+
+def dibujar_grafica_biseccion(canvas, funcion, a, b, resultado=None):
+    """Traza f(x) en [a, b], omitiendo los puntos fuera de su dominio."""
+    canvas.delete("all")
+    ancho = max(canvas.winfo_width(), 420)
+    alto = max(canvas.winfo_height(), 210)
+    izquierda, derecha, arriba, abajo = 56, ancho - 16, 28, alto - 34
+    ancho_trazo, alto_trazo = derecha - izquierda, abajo - arriba
+
+    xs = []
+    ys = []
+    cantidad = max(120, min(500, int(ancho_trazo * 1.25)))
+    for indice in range(cantidad + 1):
+        x = _interpolar_x(a, b, indice / cantidad)
+        try:
+            y = funcion(x)
+        except ValueError:
+            xs.append(x)
+            ys.append(None)
+        else:
+            xs.append(x)
+            ys.append(y)
+
+    valores = [y for y in ys if y is not None]
+    if not valores:
+        canvas.create_text(
+            ancho / 2, alto / 2, text="No se pudo representar f(x) en este intervalo.",
+            fill=TEXTO_SUAVE, width=ancho - 32,
+        )
+        return
+
+    escala_y = max(max(abs(y) for y in valores), 1.0)
+    minimo = min(min(y / escala_y for y in valores), 0.0)
+    maximo = max(max(y / escala_y for y in valores), 0.0)
+    if minimo == maximo:
+        minimo, maximo = -1.0, 1.0
+    else:
+        margen = (maximo - minimo) * 0.08
+        minimo -= margen
+        maximo += margen
+
+    def coord_y(y):
+        return abajo - (y / escala_y - minimo) / (maximo - minimo) * alto_trazo
+
+    def coord_x(x):
+        return izquierda + _proporcion_x(x, a, b) * ancho_trazo
+
+    expresion = resultado.expresion if resultado is not None else "f(x)"
+    canvas.create_text(
+        izquierda, 10, anchor="w", text=f"f(x) = {expresion}",
+        fill=TEXTO, font=("Helvetica", 9, "bold"),
+    )
+    for indice in range(5):
+        proporcion = indice / 4
+        x = _interpolar_x(a, b, proporcion)
+        y_valor = maximo + (minimo - maximo) * proporcion
+        px = izquierda + proporcion * ancho_trazo
+        py = arriba + proporcion * alto_trazo
+        valor_y = y_valor * escala_y
+        etiqueta_y = f"{valor_y:.3g}" if abs(valor_y) != float("inf") else f"{y_valor:.2g}×{escala_y:.1e}"
+        canvas.create_line(px, arriba, px, abajo, fill="#E8EDF4")
+        canvas.create_line(izquierda, py, derecha, py, fill="#E8EDF4")
+        canvas.create_text(px, abajo + 14, text=f"{x:.3g}", fill=TEXTO_SUAVE, font=("Helvetica", 8))
+        canvas.create_text(izquierda - 7, py, text=etiqueta_y,
+                           anchor="e", fill=TEXTO_SUAVE, font=("Helvetica", 8))
+
+    cero_y = coord_y(0.0)
+    canvas.create_line(izquierda, cero_y, derecha, cero_y, fill=AZUL_BORDE, width=2)
+    canvas.create_line(izquierda, arriba, izquierda, abajo, fill=AZUL_BORDE)
+    anterior = None
+    for x, y in zip(xs, ys):
+        if y is None:
+            anterior = None
+            continue
+        punto = (coord_x(x), coord_y(y))
+        if anterior is not None:
+            canvas.create_line(*anterior, *punto, fill=AZUL, width=2)
+        anterior = punto
+
+    if resultado is not None:
+        x_raiz = coord_x(resultado.raiz)
+        y_raiz = coord_y(resultado.valor_funcion)
+        canvas.create_line(x_raiz, arriba, x_raiz, abajo, fill=VERDE, dash=(4, 3))
+        canvas.create_oval(x_raiz - 4, y_raiz - 4, x_raiz + 4, y_raiz + 4,
+                           fill=VERDE, outline="white", width=1)
+        canvas.create_oval(x_raiz - 4, cero_y - 4, x_raiz + 4, cero_y + 4,
+                           fill="white", outline=VERDE, width=2)
+        canvas.create_text(
+            min(max(x_raiz, izquierda + 52), derecha - 52), arriba + 9,
+            text=f"raíz ≈ {resultado.raiz:.6g}", fill=VERDE,
+            font=("Helvetica", 8, "bold"),
+        )
+
+    canvas.create_text(
+        izquierda, alto - 7, anchor="w",
+        text="Curva: f(x)    Línea: f(x) = 0    Círculo: raíz aproximada",
+        fill=TEXTO_SUAVE, font=("Helvetica", 8),
+    )
 
 
 class PestanaBiseccion(ttk.Frame):
@@ -80,9 +196,30 @@ class PestanaBiseccion(ttk.Frame):
         marco = ttk.LabelFrame(self, text="Resultado y procedimiento paso a paso",
                                style="Seccion.TLabelframe", padding=12)
         marco.grid(row=0, column=1, sticky="nsew", padx=(7, 0))
-        area, self.txt_resultado = crear_area_resultado(marco, alto=24)
+        marco.columnconfigure(0, weight=1)
+        marco.rowconfigure(1, weight=1)
+        ttk.Label(marco, text="Gráfica de la función e intersección con el eje x",
+                  style="Negrita.TLabel").grid(row=0, column=0, sticky="w", pady=(0, 4))
+        self.canvas_grafica = tk.Canvas(
+            marco, height=210, background="white", highlightthickness=0,
+        )
+        self.canvas_grafica.grid(row=1, column=0, sticky="ew")
+        self.canvas_grafica.bind("<Configure>", self._redibujar_grafica)
+        self.resultado_biseccion = None
+        self.funcion_grafica = None
+        area, self.txt_resultado = crear_area_resultado(marco, alto=12)
         self.txt_resultado.configure(width=42)
-        area.pack(fill="both", expand=True)
+        area.grid(row=2, column=0, sticky="nsew", pady=(8, 0))
+        self.mensaje_grafica = "Resuelve una ecuación para ver su gráfica y la raíz aproximada."
+        self._mostrar_mensaje_grafica()
+
+    def _mostrar_mensaje_grafica(self):
+        self.canvas_grafica.delete("all")
+        self.canvas_grafica.create_text(
+            max(self.canvas_grafica.winfo_width(), 420) / 2,
+            max(self.canvas_grafica.winfo_height(), 210) / 2,
+            text=self.mensaje_grafica, fill=TEXTO_SUAVE, width=380,
+        )
 
     def _accion_resolver(self, _evento=None):
         try:
@@ -97,9 +234,25 @@ class PestanaBiseccion(ttk.Frame):
                 self.var_ecuacion.get(), a, b, tolerancia, int(texto_iteraciones),
             )
             mostrar_texto(self.txt_resultado, formatear_resultado_biseccion(resultado))
+            self.resultado_biseccion = resultado
+            self.funcion_grafica, _ = preparar_funcion(self.var_ecuacion.get())
+            self._redibujar_grafica()
         except ValueError as error:
             mostrar_texto(self.txt_resultado, "No se pudo resolver la ecuación.\n\n" + str(error))
+            self.resultado_biseccion = None
+            self.funcion_grafica = None
+            self.mensaje_grafica = "Corrige los datos y vuelve a resolver."
+            self._mostrar_mensaje_grafica()
             mostrar_error(error)
+
+    def _redibujar_grafica(self, _evento=None):
+        if self.resultado_biseccion is None or self.funcion_grafica is None:
+            self._mostrar_mensaje_grafica()
+            return
+        a, b = self.resultado_biseccion.intervalo_inicial
+        dibujar_grafica_biseccion(
+            self.canvas_grafica, self.funcion_grafica, a, b, self.resultado_biseccion,
+        )
 
     def _cargar_ejemplo(self):
         self.var_ecuacion.set("x^3 - x - 2 = 0")
@@ -107,6 +260,10 @@ class PestanaBiseccion(ttk.Frame):
         self.var_b.set("2")
         self.var_tolerancia.set("1e-6")
         self.var_iteraciones.set("100")
+        self.resultado_biseccion = None
+        self.funcion_grafica = None
+        self.mensaje_grafica = "Resuelve una ecuación para ver su gráfica y la raíz aproximada."
+        self._redibujar_grafica()
         mostrar_texto(self.txt_resultado, "Pulsa «Resolver por bisección» para calcular la raíz del ejemplo.")
 
     def _limpiar(self):
@@ -114,5 +271,9 @@ class PestanaBiseccion(ttk.Frame):
             variable.set("")
         self.var_tolerancia.set("1e-6")
         self.var_iteraciones.set("100")
+        self.resultado_biseccion = None
+        self.funcion_grafica = None
+        self.mensaje_grafica = "Resuelve una ecuación para ver su gráfica y la raíz aproximada."
+        self._redibujar_grafica()
         mostrar_texto(self.txt_resultado, "")
         self.entrada_ecuacion.focus_set()

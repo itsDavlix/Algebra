@@ -28,6 +28,8 @@ Abre la pestaña **Bisección** para resolver una ecuación de una variable. Esc
 
 Ejemplo: `x^3 - x - 2 = 0`, intervalo `[1, 2]`, tolerancia `1e-6` y máximo `100`. La raíz aproximada es `1.52138`. La salida incluye la aproximación, `f(x)`, la cota del error, el motivo de parada y cada iteración con sus extremos, punto medio y mitad conservada.
 
+La pestaña también grafica `f(x)` sobre el intervalo inicial y destaca la raíz aproximada y su proyección sobre el eje `x`. La curva se actualiza al cambiar el tamaño de la ventana; si una expresión no puede evaluarse en algunos puntos del intervalo, la gráfica muestra un salto en lugar de conectar esos puntos.
+
 - La función debe ser continua en todo `[a, b]`, con `a < b`. Los extremos deben tener signos opuestos o uno debe ser una raíz. Tener el mismo signo no demuestra que no existan raíces; elige otro intervalo.
 - Usa `*` para multiplicar (`2*x`), `^` o `**` para potencias, paréntesis y punto decimal. Se acepta notación científica (`1e-6`). No se admite multiplicación implícita (`2x`).
 - Funciones disponibles: `sin`/`sen`, `cos`, `tan`, `sqrt`/`raiz`, `exp`, `log`/`ln` (logaritmo natural), `log10` y `abs`, todas de un argumento. Constantes: `pi` y `e`. Los ángulos se expresan en radianes.
