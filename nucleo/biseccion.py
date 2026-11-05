@@ -132,6 +132,67 @@ class ResultadoBiseccion:
     motivo: str
 
 
+@dataclass(frozen=True)
+class AjusteBiseccion:
+    a: float
+    b: float
+    fa: float
+    fb: float
+    tolerancia: float
+    max_iteraciones: int
+
+
+def autoajustar_biseccion(ecuacion):
+    """Propone un intervalo muestreado y una cota de error acorde con su ancho.
+
+    El muestreo no demuestra continuidad; esa condición debe revisarse aparte.
+    """
+    funcion, _ = preparar_funcion(ecuacion)
+    for potencia in range(21):
+        radio = 2 ** potencia
+        puntos = []
+        for indice in range(-8, 9):
+            x = radio * indice / 8
+            try:
+                valor = funcion(x)
+            except ValueError:
+                puntos.append((x, None))
+            else:
+                puntos.append((x, valor))
+
+        candidatos = []
+        for (a, fa), (b, fb) in zip(puntos, puntos[1:]):
+            if fa is None or fb is None:
+                continue
+            if fa != 0 and fb != 0 and (fa < 0) == (fb < 0):
+                continue
+            # Descarta los saltos de dominio visibles también en el interior.
+            try:
+                funcion((a + b) / 2)
+            except ValueError:
+                continue
+            candidatos.append((a, b, fa, fb))
+
+        if candidatos:
+            # Si hay varias raíces posibles, prefiere la cercana a cero y,
+            # en caso de empate, la situada a la derecha.
+            a, b, fa, fb = min(
+                candidatos, key=lambda par: (abs((par[0] + par[1]) / 2),
+                                             -((par[0] + par[1]) / 2)),
+            )
+            ancho = b - a
+            tolerancia = max(1e-12, ancho * 1e-6)
+            iteraciones = min(MAX_ITERACIONES,
+                              max(1, math.ceil(math.log2(ancho / tolerancia)) + 1))
+            return AjusteBiseccion(a, b, fa, fb, tolerancia, iteraciones)
+
+    raise ValueError(
+        "No se encontró un intervalo con cambio de signo entre -1 048 576 y 1 048 576. "
+        "Puede no haber una raíz detectable por este muestreo. Escribe a y b manualmente "
+        "y comprueba que f sea continua en todo el intervalo."
+    )
+
+
 def resolver_biseccion(ecuacion, a, b, tolerancia=1e-6, max_iteraciones=100):
     """Busca una raíz de una función continua en [a, b] con cambio de signo.
 

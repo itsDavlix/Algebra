@@ -4,12 +4,32 @@ import math
 import unittest
 
 from nucleo.biseccion import (
-    MAX_ITERACIONES, formatear_resultado_biseccion,
+    MAX_ITERACIONES, autoajustar_biseccion, formatear_resultado_biseccion,
     preparar_funcion, resolver_biseccion,
 )
 
 
 class PruebasBiseccion(unittest.TestCase):
+    def test_autoajuste_propone_parametros_que_permiten_converger(self):
+        for ecuacion in ("x^2 = 2", "log(x)", "x - 10000"):
+            with self.subTest(ecuacion=ecuacion):
+                ajuste = autoajustar_biseccion(ecuacion)
+                self.assertLess(ajuste.a, ajuste.b)
+                self.assertTrue(ajuste.fa == 0 or ajuste.fb == 0
+                                or (ajuste.fa < 0) != (ajuste.fb < 0))
+                resultado = resolver_biseccion(
+                    ecuacion, ajuste.a, ajuste.b,
+                    ajuste.tolerancia, ajuste.max_iteraciones,
+                )
+                self.assertTrue(resultado.convergio)
+                self.assertLessEqual(resultado.error, ajuste.tolerancia)
+
+    def test_autoajuste_no_inventa_intervalo_sin_evidencia(self):
+        for ecuacion in ("x^2 + 1", "1/x", "sqrt(x) + 1"):
+            with self.subTest(ecuacion=ecuacion):
+                with self.assertRaisesRegex(ValueError, "No se encontró un intervalo"):
+                    autoajustar_biseccion(ecuacion)
+
     def test_raices_conocidas_y_cota_del_error(self):
         casos = (
             ("x^2 = 2", 1, 2, math.sqrt(2)),

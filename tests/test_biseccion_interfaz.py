@@ -32,6 +32,22 @@ class PruebasAccionesBiseccion(unittest.TestCase):
 
     @patch("interfaz.pestanaBiseccion.mostrar_error")
     @patch("interfaz.pestanaBiseccion.mostrar_texto")
+    def test_autoajuste_rellena_campos_y_explica_la_propuesta(self, mostrar, error):
+        self.pestana.var_ecuacion.set("x^2 = 2")
+        self.pestana.var_continuidad.set(True)
+        self.pestana._accion_autoajustar()
+
+        self.assertLess(float(self.pestana.var_a.get()), float(self.pestana.var_b.get()))
+        self.assertGreater(float(self.pestana.var_tolerancia.get()), 0)
+        self.assertGreater(int(self.pestana.var_iteraciones.get()), 0)
+        self.assertFalse(self.pestana.var_continuidad.get())
+        salida = mostrar.call_args.args[1]
+        for texto in ("f(a)", "f(b)", "Tolerancia", "iteraciones", "continuidad"):
+            self.assertIn(texto, salida)
+        error.assert_not_called()
+
+    @patch("interfaz.pestanaBiseccion.mostrar_error")
+    @patch("interfaz.pestanaBiseccion.mostrar_texto")
     def test_ejemplo_resuelve_desde_los_campos(self, mostrar, error):
         self.pestana._cargar_ejemplo()
         self.pestana._accion_resolver()
