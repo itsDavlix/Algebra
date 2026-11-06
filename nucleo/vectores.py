@@ -2,7 +2,7 @@
 
 import re
 
-from nucleo.numeros import convertir_numero, limpiar_numero, asegurar_finito
+from nucleo.numeros import convertir_numero, limpiar_numero, asegurar_finito, escala_de
 
 MAX_COMPONENTES = 200
 
@@ -36,7 +36,8 @@ def vector_a_texto(vector):
     """Da formato (a, b, c, ...) a un vector para mostrarlo en pantalla."""
     if not vector:
         return "()"
-    return "(" + ", ".join(limpiar_numero(x) for x in vector) + ")"
+    escala = escala_de(vector)
+    return "(" + ", ".join(limpiar_numero(x, escala) for x in vector) + ")"
 
 
 # Las operaciones entre dos vectores requieren dimensiones iguales.

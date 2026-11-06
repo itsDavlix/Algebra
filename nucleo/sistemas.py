@@ -1,6 +1,6 @@
 """Módulo de sistemas lineales: eliminación Gauss-Jordan y combinación lineal."""
 
-from nucleo.numeros import EPSILON, limpiar_numero, asegurar_finito
+from nucleo.numeros import limpiar_numero, asegurar_finito, escala_de, umbral_cero
 from nucleo.matrices import dimensiones, matriz_ampliada_a_texto, matriz_a_texto
 
 
@@ -25,6 +25,8 @@ def resolver_sistema_gauss_jordan_con_pasos(a, b):
         + [asegurar_finito(valor, "Término independiente") for valor in b[i]]
         for i in range(filas_a)
     ]
+    umbral_a = umbral_cero(escala_de(a))
+    umbral_aumentada = umbral_cero(escala_de(aumentada))
     ancho = columnas_a + columnas_b
     fila_pivote = 0
     columnas_pivote = []
@@ -39,7 +41,7 @@ def resolver_sistema_gauss_jordan_con_pasos(a, b):
         mejor_fila, mejor_valor = None, 0.0
         for i in range(fila_pivote, filas_a):
             valor = abs(aumentada[i][columna])
-            if valor > mejor_valor and valor > EPSILON:
+            if valor > mejor_valor and valor > umbral_a:
                 mejor_valor, mejor_fila = valor, i
 
         if mejor_fila is None:
@@ -59,7 +61,7 @@ def resolver_sistema_gauss_jordan_con_pasos(a, b):
             numero_paso += 1
 
         pivote = aumentada[fila_pivote][columna]
-        if abs(pivote - 1.0) > EPSILON:
+        if pivote != 1.0:
             aumentada[fila_pivote] = [
                 asegurar_finito(valor / pivote, "Valor durante Gauss-Jordan")
                 for valor in aumentada[fila_pivote]
@@ -75,7 +77,7 @@ def resolver_sistema_gauss_jordan_con_pasos(a, b):
             if i == fila_pivote:
                 continue
             factor = aumentada[i][columna]
-            if abs(factor) > EPSILON:
+            if abs(factor) > umbral_a:
                 nueva_fila = []
                 for j in range(ancho):
                     producto = asegurar_finito(
@@ -105,8 +107,8 @@ def resolver_sistema_gauss_jordan_con_pasos(a, b):
 
     # Una fila 0 = valor no nulo demuestra que el sistema es incompatible.
     for fila in aumentada:
-        if all(abs(valor) <= EPSILON for valor in fila[:columnas_a]):
-            if any(abs(valor) > EPSILON for valor in fila[columnas_a:]):
+        if all(abs(valor) <= umbral_a for valor in fila[:columnas_a]):
+            if any(abs(valor) > umbral_aumentada for valor in fila[columnas_a:]):
                 pasos.append(
                     f"PASO {numero_paso}. Aparece una fila con 0 en todos los coeficientes "
                     "pero un término independiente distinto de 0. El sistema es incompatible."

@@ -59,7 +59,7 @@ def _crear_expansor_cofactores():
         expansiones += 1
         if expansiones > MAX_EXPANSIONES:
             raise ValueError(f"Cofactores superó el límite de {MAX_EXPANSIONES} expansiones. "
-                             "Seleccioná LU para calcular esta matriz.")
+                             "Selecciona LU para calcular esta matriz.")
         n = len(actual)
         if n == 1:
             resultado = actual[0][0]
@@ -126,7 +126,7 @@ def determinante(matriz, metodo):
         return determinante_lu(matriz)
     if metodo == "auto":
         return determinante_adaptativo(matriz)
-    raise ValueError("Seleccioná cofactores o LU.")
+    raise ValueError("Selecciona cofactores o LU.")
 
 
 def formatear_determinante(valor):
@@ -174,8 +174,12 @@ def _texto(valor):
     if valor.denominator == 1:
         return str(valor.numerator)
     try:
-        return limpiar_numero(valor.numerator / valor.denominator)
+        aproximado = valor.numerator / valor.denominator
+        if aproximado != 0:
+            return limpiar_numero(aproximado, abs(aproximado))
     except (OverflowError, ValueError):
+        pass
+    if valor != 0:
         # El cálculo sigue siendo exacto; Decimal permite mostrar razones
         # enormes sin convertirlas primero a un float que podría desbordarse.
         with localcontext() as contexto:
@@ -184,6 +188,7 @@ def _texto(valor):
                 Decimal(valor.numerator) / Decimal(valor.denominator),
                 ".6g",
             )
+    return "0"
 
 
 def _matriz_texto(matriz):
@@ -344,7 +349,7 @@ def _pasos_lu(matriz):
 def determinante_con_pasos(matriz, metodo):
     """Calcula con el método elegido y devuelve (valor, lista_de_pasos, comprobación)."""
     if metodo not in ("cofactores", "lu"):
-        raise ValueError("Seleccioná cofactores o LU.")
+        raise ValueError("Selecciona cofactores o LU.")
     n, _ = dimensiones(matriz)
     pasos = [
         "PASO 1. Validar que A sea cuadrada.\n"
@@ -383,7 +388,7 @@ def validar_entrada_determinante(texto):
     # Etapa 1: el campo no puede estar vacío.
     if not str(texto).strip():
         resultado[0][0] = False
-        resultado[0][2] = "Escribí una matriz, una fila por línea."
+        resultado[0][2] = "Escribe una matriz, una fila por línea."
         return None, [tuple(r) for r in resultado]
     resultado[0][0] = True
 

@@ -2,7 +2,9 @@
 
 import re
 
-from nucleo.numeros import convertir_numero, limpiar_numero, asegurar_finito, EPSILON
+from nucleo.numeros import (
+    convertir_numero, limpiar_numero, asegurar_finito, escala_de, umbral_cero,
+)
 
 MAX_FILAS = 40
 MAX_COLUMNAS = 40
@@ -92,17 +94,27 @@ def matriz_a_texto(matriz):
     if not matriz:
         return "[]"
     _validar_matriz(matriz)
-    return "\n".join("[ " + "   ".join(limpiar_numero(x) for x in fila) + " ]" for fila in matriz)
+    escala = escala_de(matriz)
+    return "\n".join(
+        "[ " + "   ".join(limpiar_numero(x, escala) for x in fila) + " ]"
+        for fila in matriz
+    )
 
 
 def matriz_ampliada_a_texto(matriz, separacion):
     _validar_matriz(matriz, "La matriz ampliada", validar_limites=False)
     if not isinstance(separacion, int) or not 0 < separacion < len(matriz[0]):
         raise ValueError("La separación de la matriz ampliada no es válida.")
+    escala_izquierda = escala_de([fila[:separacion] for fila in matriz])
+    escala_derecha = escala_de([fila[separacion:] for fila in matriz])
     lineas = []
     for fila in matriz:
-        izquierda = "   ".join(limpiar_numero(x) for x in fila[:separacion])
-        derecha = "   ".join(limpiar_numero(x) for x in fila[separacion:])
+        izquierda = "   ".join(
+            limpiar_numero(x, escala_izquierda) for x in fila[:separacion]
+        )
+        derecha = "   ".join(
+            limpiar_numero(x, escala_derecha) for x in fila[separacion:]
+        )
         lineas.append(f"[ {izquierda}   |   {derecha} ]")
     return "\n".join(lineas)
 
@@ -154,11 +166,20 @@ def multiplicar_matrices(a, b):
     return resultado
 
 
-def matrices_aproximadamente_iguales(a, b):
-    if dimensiones(a) != dimensiones(b):
-        return False
-    filas, columnas = dimensiones(a)
-    return all(abs(a[i][j] - b[i][j]) <= 1e-8 for i in range(filas) for j in range(columnas))
+def norma_1(matriz):
+    """Calcula la mayor suma absoluta de columna de una matriz válida."""
+    filas, columnas = dimensiones(matriz)
+    return max(
+        sum(abs(matriz[i][j]) for i in range(filas))
+        for j in range(columnas)
+    )
+
+
+def numero_condicion_1(matriz, inversa):
+    """Calcula cond₁(A) como el producto de las normas 1 de A y A⁻¹."""
+    if dimensiones(matriz) != dimensiones(inversa):
+        raise ValueError("La matriz y su inversa deben tener las mismas dimensiones.")
+    return norma_1(matriz) * norma_1(inversa)
 
 
 def matriz_inversa_con_pasos(matriz):
@@ -168,6 +189,7 @@ def matriz_inversa_con_pasos(matriz):
 
     # Se combina A con la identidad para transformar [A | I] en [I | A⁻¹].
     n = filas
+    umbral = umbral_cero(escala_de(matriz))
     aumentada = []
     for i in range(n):
         identidad = [1.0 if i == j else 0.0 for j in range(n)]
@@ -181,7 +203,7 @@ def matriz_inversa_con_pasos(matriz):
 
     for columna in range(n):
         fila_pivote = max(range(columna, n), key=lambda i: abs(aumentada[i][columna]))
-        if abs(aumentada[fila_pivote][columna]) <= EPSILON:
+        if abs(aumentada[fila_pivote][columna]) <= umbral:
             raise ValueError("La matriz no tiene inversa porque es singular (determinante igual a 0).")
 
         if fila_pivote != columna:
@@ -190,28 +212,47 @@ def matriz_inversa_con_pasos(matriz):
             numero_paso += 1
 
         pivote = aumentada[columna][columna]
-        if abs(pivote - 1.0) > EPSILON:
+        if pivote != 1.0:
             aumentada[columna] = [asegurar_finito(valor / pivote, "Valor durante Gauss-Jordan") for valor in aumentada[columna]]
-            pasos.append(f"PASO {numero_paso}. Convertir el pivote de la columna {columna + 1} en 1:\nF{columna + 1} ← F{columna + 1} ÷ ({limpiar_numero(pivote)}).\n\n" + matriz_ampliada_a_texto(aumentada, n))
+            pasos.append(f"PASO {numero_paso}. Convertir el pivote de la columna {columna + 1} en 1:\nF{columna + 1} ← F{columna + 1} ÷ ({limpiar_numero(pivote, escala_de(matriz))}).\n\n" + matriz_ampliada_a_texto(aumentada, n))
             numero_paso += 1
 
         for i in range(n):
             if i == columna:
                 continue
             factor = aumentada[i][columna]
-            if abs(factor) > EPSILON:
+            if abs(factor) > umbral:
                 nueva_fila = []
                 for j in range(2 * n):
                     valor = aumentada[i][j] - factor * aumentada[columna][j]
                     nueva_fila.append(asegurar_finito(valor, "Valor durante Gauss-Jordan"))
                 aumentada[i] = nueva_fila
                 signo = "−" if factor >= 0 else "+"
-                magnitud = limpiar_numero(abs(factor))
+                magnitud = limpiar_numero(abs(factor), escala_de(matriz))
                 pasos.append(f"PASO {numero_paso}. Hacer 0 la entrada de F{i + 1}, columna {columna + 1}:\nF{i + 1} ← F{i + 1} {signo} ({magnitud})F{columna + 1}.\n\n" + matriz_ampliada_a_texto(aumentada, n))
                 numero_paso += 1
 
-    inversa = [[0.0 if abs(valor) <= EPSILON else asegurar_finito(valor) for valor in fila[n:]] for fila in aumentada]
+    inversa_sin_limpiar = [
+        [asegurar_finito(valor, "Elemento de la matriz inversa") for valor in fila[n:]]
+        for fila in aumentada
+    ]
+    escala_inversa = escala_de(inversa_sin_limpiar)
+    inversa = [
+        [
+            0.0 if abs(valor) <= umbral_cero(escala_inversa) else valor
+            for valor in fila
+        ]
+        for fila in inversa_sin_limpiar
+    ]
     pasos.append(f"PASO {numero_paso}. La parte izquierda ya es I; por eso la parte derecha es A⁻¹.\n\nA⁻¹ =\n" + matriz_a_texto(inversa))
+    condicion = numero_condicion_1(matriz, inversa)
+    if condicion > 1e8:
+        cifras = len(str(int(condicion))) - 1
+        pasos.append(
+            "ADVERTENCIA. A está mal condicionada: "
+            f"cond₁(A) ≈ {limpiar_numero(condicion)}; "
+            f"pierde aproximadamente {cifras} cifras significativas."
+        )
     return inversa, pasos
 
 

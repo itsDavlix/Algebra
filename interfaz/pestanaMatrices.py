@@ -384,7 +384,7 @@ class PestanaMatrices(ttk.Frame):
         ).pack(anchor="w", pady=(4, 0))
         ttk.Label(contenido, text=recomendacion, wraplength=490).pack(anchor="w", pady=12)
         ttk.Label(contenido, text="Cofactores se detiene tras 100000 expansiones para evitar "
-                  "una espera excesiva. En ese caso, podés elegir LU.", wraplength=490).pack(anchor="w")
+                  "una espera excesiva. En ese caso, puedes elegir LU.", wraplength=490).pack(anchor="w")
 
         # Ningún método queda seleccionado automáticamente: la decisión es del usuario.
         metodo = tk.StringVar(value="")

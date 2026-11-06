@@ -234,6 +234,7 @@ def resolver_biseccion(ecuacion, a, b, tolerancia=1e-6, max_iteraciones=100):
             "Elige otro intervalo con signos opuestos. Esto no significa que "
             "la ecuación no tenga raíces."
         )
+    magnitud_extremos = max(abs(fa), abs(fb))
 
     for numero in range(1, max_iteraciones + 1):
         # Evita desbordamientos tanto en a+b como en b-a.
@@ -246,6 +247,12 @@ def resolver_biseccion(ecuacion, a, b, tolerancia=1e-6, max_iteraciones=100):
         if fc == 0:
             return resultado(c, fc, 0.0, True, "f(c) = 0 en la precisión de cálculo.")
         if error <= tolerancia:
+            if abs(fc) > magnitud_extremos:
+                return resultado(
+                    c, fc, error, False,
+                    "Posible discontinuidad (polo): |f(c)| supera las magnitudes "
+                    "de los extremos; x no es una raíz.",
+                )
             return resultado(c, fc, error, True, "La cota del error en x es menor o igual que la tolerancia.")
         if c == a or c == b:
             return resultado(c, fc, error, False,

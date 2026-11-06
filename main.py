@@ -1,25 +1,3 @@
-import os
-import sys
-import tkinter as tk
-from tkinter import ttk
-
-
-# Permite encontrar los módulos locales también al iniciar main.py directamente.
-if __package__ is None or __package__ == "":
-    project_root = os.path.dirname(os.path.abspath(__file__))
-    if project_root not in sys.path:
-        sys.path.insert(0, project_root)
-
-from interfaz.pestañaDeterminantes import PestanaDeterminantes
-from interfaz.estilos import configurar_estilo
-from interfaz.pestanaInicio import PestanaInicio
-from interfaz.pestanaVectores import PestanaVectores
-from interfaz.pestanaMatrices import PestanaMatrices
-from interfaz.pestanaEcuaciones import PestanaEcuaciones
-from interfaz.pestanaBiseccion import PestanaBiseccion
-from interfaz.pestanaRomanos import PestanaRomanos
-from interfaz.programaAnterior import PestanaProgramaAnterior
-
 """PROGRAMA VECTORES - Calculadora de Álgebra Lineal
 Universidad Americana (UAM) - Álgebra Lineal (MTM0120)
 
@@ -37,6 +15,26 @@ Características:
 - Comprobaciones automáticas de resultados con tolerancia numérica.
 - Opción para ejecutar un programa .py elaborado anteriormente."""
 
+import os
+import sys
+import tkinter as tk
+from tkinter import ttk
+
+
+# Permite encontrar los módulos locales también al iniciar main.py directamente.
+if __package__ is None or __package__ == "":
+    project_root = os.path.dirname(os.path.abspath(__file__))
+    if project_root not in sys.path:
+        sys.path.insert(0, project_root)
+
+from interfaz.estilos import configurar_estilo
+from interfaz.pestanaInicio import PestanaInicio
+from interfaz.pestanaVectores import PestanaVectores
+from interfaz.pestanaMatrices import PestanaMatrices
+from interfaz.pestanaEcuaciones import PestanaEcuaciones
+from interfaz.pestanaBiseccion import PestanaBiseccion
+from interfaz.pestanaRomanos import PestanaRomanos
+from interfaz.programaAnterior import PestanaProgramaAnterior
 
 class CalculadoraAlgebraLineal(tk.Tk):
     """Ventana principal: agrupa cada módulo funcional en una pestaña."""

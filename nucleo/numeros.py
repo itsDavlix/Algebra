@@ -7,7 +7,9 @@ EPSILON = 1e-10
 
 # Acepta enteros, decimales con punto y notación científica. No acepta NaN/Inf,
 # guiones bajos ni expresiones para evitar entradas ambiguas.
-_PATRON_NUMERO = re.compile(r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$")
+_PATRON_NUMERO = re.compile(
+    r"^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][+-]?\d+)?$", re.ASCII
+)
 
 
 # Evita que valores infinitos o entradas no numéricas lleguen a las operaciones.
@@ -24,15 +26,45 @@ def asegurar_finito(numero, contexto="El resultado"):
     return valor
 
 
-def limpiar_numero(numero):
+def escala_de(valores):
+    """Devuelve la mayor magnitud absoluta de una colección, incluso anidada."""
+    try:
+        magnitudes = []
+        pendientes = [iter(valores)]
+        while pendientes:
+            for valor in pendientes.pop():
+                if isinstance(valor, (list, tuple)):
+                    pendientes.append(iter(valor))
+                else:
+                    magnitudes.append(abs(asegurar_finito(valor)))
+        return max(magnitudes, default=0.0)
+    except TypeError as exc:
+        raise ValueError("Los valores para calcular la escala no son una colección válida.") from exc
+
+
+def umbral_cero(escala):
+    """Calcula el umbral de cero relativo a una escala finita no negativa."""
+    escala = asegurar_finito(escala, "La escala")
+    if escala < 0:
+        raise ValueError("La escala debe ser mayor o igual que cero.")
+    return EPSILON * escala
+
+
+def limpiar_numero(numero, escala=None):
     """Da formato legible a un número finito, evitando -0 y decimales innecesarios."""
     numero = asegurar_finito(numero)
-    if abs(numero) <= EPSILON:
+    umbral = EPSILON if escala is None else umbral_cero(escala)
+    if abs(numero) <= umbral:
         return "0"
 
     # Evita convertir números gigantes a int solo para mostrarlos.
-    if abs(numero) < 1e15 and abs(numero - round(numero)) < EPSILON:
-        return str(int(round(numero)))
+    entero = round(numero)
+    if (
+        entero != 0
+        and abs(numero) < 1e15
+        and abs(numero - entero) <= EPSILON * abs(entero)
+    ):
+        return str(int(entero))
 
     # Notación científica para magnitudes que serían poco legibles en decimal fijo.
     if abs(numero) >= 1e9 or abs(numero) < 1e-6:

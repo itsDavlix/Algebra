@@ -68,9 +68,9 @@ class PruebasDeterminantes(unittest.TestCase):
         matriz = [[2 if i == j else 1 for j in range(4)] for i in range(4)]
         self.assertEqual(recomendar_metodo(matriz)[0], 'lu')
         with patch('nucleo.determinantes.MAX_EXPANSIONES', 1):
-            with self.assertRaisesRegex(ValueError, 'Seleccioná LU'):
+            with self.assertRaisesRegex(ValueError, 'Selecciona LU'):
                 determinante(matriz, 'cofactores')
-            with self.assertRaisesRegex(ValueError, 'Seleccioná LU'):
+            with self.assertRaisesRegex(ValueError, 'Selecciona LU'):
                 determinante_con_pasos(matriz, 'cofactores')
         self.assertEqual(determinante(matriz, 'lu'), 5)
 
