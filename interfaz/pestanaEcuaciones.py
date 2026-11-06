@@ -4,9 +4,12 @@ import tkinter as tk
 from tkinter import ttk
 
 from nucleo.matrices import leer_matriz, matriz_a_texto, multiplicar_matrices, dimensiones
-from nucleo.comprobaciones import matrices_aproximadamente_iguales
-from nucleo.numeros import limpiar_numero
-from nucleo.sistemas import resolver_sistema_gauss_jordan_con_pasos, ErrorSistemaIncompatible
+from nucleo.comprobaciones import matrices_aproximadamente_iguales, TOLERANCIA
+from nucleo.numeros import limpiar_numero, escala_de
+from nucleo.sistemas import (
+    resolver_sistema_gauss_jordan_con_pasos, ErrorSistemaIncompatible,
+    solucion_general_texto,
+)
 from interfaz.ayudas import mostrar_texto, mostrar_error, crear_area_resultado, AyudaEmergente
 
 
@@ -66,12 +69,17 @@ class PestanaEcuaciones(ttk.Frame):
             a = leer_matriz(self.txt_a.get("1.0", "end"), "matriz A")
             b = leer_matriz(self.txt_b.get("1.0", "end"), "matriz B")
             solucion, tipo, pivotes, pasos = resolver_sistema_gauss_jordan_con_pasos(a, b)
+            escala_solucion = escala_de(solucion)
 
             salida = "SOLUCIÓN X:\n" + matriz_a_texto(solucion)
             salida += (
                 "\n\nTipo de solución: única."
                 if tipo == "unica"
-                else "\n\nTipo de solución: infinitas soluciones (variables libres = 0 en la solución mostrada)."
+                else (
+                    "\n\nTipo de solución: infinitas soluciones "
+                    "(variables libres = 0 en la solución particular mostrada).\n\n"
+                    "Solución general:\n" + solucion_general_texto(a, b)
+                )
             )
             salida += "\nColumnas con pivote: " + (", ".join(str(i + 1) for i in pivotes) or "ninguna")
 
@@ -86,7 +94,10 @@ class PestanaEcuaciones(ttk.Frame):
             salida += _bloque(pasos)
             mostrar_texto(self.txt_resultado, salida)
 
-            texto_x = "\n".join(" ".join(limpiar_numero(x) for x in fila) for fila in solucion)
+            texto_x = "\n".join(
+                " ".join(limpiar_numero(x, escala_solucion) for x in fila)
+                for fila in solucion
+            )
             self.txt_x.delete("1.0", "end")
             self.txt_x.insert("1.0", texto_x)
         except ErrorSistemaIncompatible as error:
@@ -105,23 +116,34 @@ class PestanaEcuaciones(ttk.Frame):
             cumple = matrices_aproximadamente_iguales(producto, b)
             filas_a, columnas_a = dimensiones(a)
             _, columnas_x = dimensiones(x)
+            escala_a, escala_x = escala_de(a), escala_de(x)
+            escala_producto, escala_b = escala_de(producto), escala_de(b)
             calculos = []
             for i in range(filas_a):
                 for j in range(columnas_x):
                     expresion = " + ".join(
-                        f"({limpiar_numero(a[i][k])}×{limpiar_numero(x[k][j])})"
+                        f"({limpiar_numero(a[i][k], escala_a)}×"
+                        f"{limpiar_numero(x[k][j], escala_x)})"
                         for k in range(columnas_a)
                     )
                     calculos.append(
-                        f"(A·X)[{i + 1},{j + 1}] = {expresion} = {limpiar_numero(producto[i][j])}"
+                        f"(A·X)[{i + 1},{j + 1}] = {expresion} = "
+                        f"{limpiar_numero(producto[i][j], escala_producto)}"
                     )
 
             comparaciones = []
             for i in range(len(producto)):
                 for j in range(len(producto[0])):
-                    simbolo = "=" if abs(producto[i][j] - b[i][j]) <= 1e-8 else "≠"
+                    escala = max(abs(producto[i][j]), abs(b[i][j]))
+                    simbolo = (
+                        "="
+                        if abs(producto[i][j] - b[i][j]) <= TOLERANCIA * escala
+                        else "≠"
+                    )
                     comparaciones.append(
-                        f"Posición [{i + 1},{j + 1}]: {limpiar_numero(producto[i][j])} {simbolo} {limpiar_numero(b[i][j])}"
+                        f"Posición [{i + 1},{j + 1}]: "
+                        f"{limpiar_numero(producto[i][j], escala_producto)} {simbolo} "
+                        f"{limpiar_numero(b[i][j], escala_b)}"
                     )
 
             pasos = [

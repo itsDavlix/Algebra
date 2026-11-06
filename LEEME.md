@@ -44,3 +44,13 @@ Archivos añadidos: `nucleo/biseccion.py` (evaluación y método), `interfaz/pes
 ## Tolerancias numéricas
 
 El formato de matrices y vectores utiliza un umbral de cero relativo a la mayor magnitud del bloque mostrado; la eliminación de Gauss-Jordan compara pivotes y factores con la escala de los coeficientes. Así, matrices uniformemente pequeñas no se declaran singulares por un umbral absoluto. La matriz inversa muestra una advertencia cuando su número de condición en norma 1 supera `1e8`; una condición alta indica sensibilidad a errores de redondeo, no un fallo del algoritmo. El cálculo del determinante conserva racionales exactos a partir de los valores recibidos y presenta aproximaciones decimales solo para mostrarlos.
+
+## Operaciones de matrices y vectores
+
+En **Matrices** puedes calcular la transpuesta y el rango por eliminación; el rango incluye la comprobación `rango(A) = rango(Aᵀ)`. En **Vectores** puedes calcular producto punto, producto cruz (solo en R³), norma euclidiana e independencia lineal de un conjunto mediante el rango. Los procedimientos incluyen comprobaciones automáticas.
+
+Cuando un sistema tiene infinitas soluciones, **Ecuaciones A·X = B** muestra una solución particular y su forma paramétrica, usando `t1`, `t2`, etc. para las variables libres. La comprobación automática sustituye la solución particular en `A·X = B`; las expresiones paramétricas describen también las demás soluciones.
+
+## Pruebas
+
+Ejecuta `python -m unittest discover -s tests -p "test_[!b]*.py"` y `python -m unittest tests.test_biseccion tests.test_biseccion_polos`. Las pruebas de interfaz de bisección usan Tkinter y se ejecutan con `python -m unittest tests.test_biseccion_interfaz` cuando está disponible.

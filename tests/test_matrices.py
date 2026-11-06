@@ -5,6 +5,8 @@ import unittest
 
 from nucleo.matrices import (
     matriz_inversa_con_pasos, multiplicar_matrices, norma_1, numero_condicion_1,
+    matriz_transpuesta, matriz_transpuesta_con_pasos, rango_matriz,
+    rango_matriz_con_pasos,
 )
 
 
@@ -65,3 +67,21 @@ class PruebasMatrices(unittest.TestCase):
         inversa, pasos = matriz_inversa_con_pasos(matriz)
         self.assertEqual(norma_1(matriz), 4)
         self.assertFalse(any("ADVERTENCIA" in paso for paso in pasos))
+
+    def test_transpuesta_rectangular_y_comprobacion(self):
+        """Intercambia filas y columnas y verifica la doble transpuesta."""
+        resultado, pasos = matriz_transpuesta_con_pasos([[1, 2, 3], [4, 5, 6]])
+        self.assertEqual(resultado, [[1, 4], [2, 5], [3, 6]])
+        self.assertEqual(matriz_transpuesta(resultado), [[1, 2, 3], [4, 5, 6]])
+        self.assertTrue(any("COMPROBACIÓN" in paso for paso in pasos))
+
+    def test_rango_y_rango_de_transpuesta(self):
+        """Calcula el rango con tolerancia relativa y lo compara con el transpuesto."""
+        matriz = [[1, 2, 3], [2, 4, 6], [0, 1, 1]]
+        rango, pasos = rango_matriz_con_pasos(matriz)
+        self.assertEqual(rango, 2)
+        self.assertEqual(rango_matriz(matriz), 2)
+        self.assertTrue(any("rango(Aᵀ)" in paso and "2 = 2" in paso for paso in pasos))
+
+        rango_pequena, _ = rango_matriz_con_pasos([[1e-11, 0], [0, 2e-11]])
+        self.assertEqual(rango_pequena, 2)

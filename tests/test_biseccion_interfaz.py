@@ -15,12 +15,7 @@ class PruebasAccionesBiseccion(unittest.TestCase):
         self.pestana = PestanaBiseccion.__new__(PestanaBiseccion)
         for nombre in ("ecuacion", "a", "b", "tolerancia", "iteraciones"):
             setattr(self.pestana, "var_" + nombre, tk.StringVar(self.tcl))
-        self.pestana.var_continuidad = tk.BooleanVar(self.tcl, value=False)
         self.pestana._cargando_ejemplo = False
-        for variable in (
-            self.pestana.var_ecuacion, self.pestana.var_a, self.pestana.var_b,
-        ):
-            variable.trace_add("write", self.pestana._desmarcar_continuidad)
         self.pestana.txt_resultado = Mock()
         self.pestana.entrada_ecuacion = Mock()
         self.pestana.tabla_iteraciones = Mock()
@@ -34,13 +29,11 @@ class PruebasAccionesBiseccion(unittest.TestCase):
     @patch("interfaz.pestanaBiseccion.mostrar_texto")
     def test_autoajuste_rellena_campos_y_explica_la_propuesta(self, mostrar, error):
         self.pestana.var_ecuacion.set("x^2 = 2")
-        self.pestana.var_continuidad.set(True)
         self.pestana._accion_autoajustar()
 
         self.assertLess(float(self.pestana.var_a.get()), float(self.pestana.var_b.get()))
         self.assertGreater(float(self.pestana.var_tolerancia.get()), 0)
         self.assertGreater(int(self.pestana.var_iteraciones.get()), 0)
-        self.assertFalse(self.pestana.var_continuidad.get())
         salida = mostrar.call_args.args[1]
         for texto in ("f(a)", "f(b)", "Tolerancia", "iteraciones", "continuidad"):
             self.assertIn(texto, salida)
@@ -50,7 +43,6 @@ class PruebasAccionesBiseccion(unittest.TestCase):
     @patch("interfaz.pestanaBiseccion.mostrar_texto")
     def test_ejemplo_resuelve_desde_los_campos(self, mostrar, error):
         self.pestana._cargar_ejemplo()
-        self.pestana.var_continuidad.set(True)
         self.pestana._accion_resolver()
         salida = mostrar.call_args.args[1]
         self.assertIn("convergencia alcanzada", salida)
@@ -67,7 +59,6 @@ class PruebasAccionesBiseccion(unittest.TestCase):
     @patch("interfaz.pestanaBiseccion.mostrar_texto")
     def test_tabla_despliega_calculos_y_decision_de_cada_iteracion(self, mostrar, error):
         self.pestana._cargar_ejemplo()
-        self.pestana.var_continuidad.set(True)
         self.pestana._accion_resolver()
 
         inserts = self.pestana.tabla_iteraciones.insert.call_args_list
@@ -138,28 +129,19 @@ class PruebasAccionesBiseccion(unittest.TestCase):
 
     @patch("interfaz.pestanaBiseccion.mostrar_error")
     @patch("interfaz.pestanaBiseccion.mostrar_texto")
-    def test_exige_confirmar_continuidad(self, mostrar, error):
+    def test_resuelve_sin_casilla_de_confirmacion(self, mostrar, error):
         self.pestana._cargar_ejemplo()
-        self.pestana.var_continuidad.set(False)
-
         self.pestana._accion_resolver()
 
-        self.assertIn("Confirma que la función es continua", mostrar.call_args.args[1])
-        self.assertIn("no puede comprobarse automáticamente", str(error.call_args.args[0]))
-        self.pestana.tabla_iteraciones.insert.assert_not_called()
+        self.assertIn("convergencia alcanzada", mostrar.call_args.args[1])
+        error.assert_not_called()
 
-    def test_editar_ecuacion_o_intervalo_requiere_confirmar_continuidad_de_nuevo(self):
+    def test_editar_ecuacion_o_intervalo_no_requiere_confirmacion(self):
         self.pestana._cargar_ejemplo()
-        self.assertFalse(self.pestana.var_continuidad.get())
-
-        self.pestana.var_continuidad.set(True)
-
         self.pestana.var_ecuacion.set("x^2 - 2")
-        self.assertFalse(self.pestana.var_continuidad.get())
-
-        self.pestana.var_continuidad.set(True)
         self.pestana.var_a.set("1.1")
-        self.assertFalse(self.pestana.var_continuidad.get())
+        self.pestana.var_b.set("2")
+        self.assertNotIn("var_continuidad", vars(self.pestana))
 
     def test_grafica_muestra_curva_y_raiz_aproximada(self):
         lienzo = Mock()
@@ -227,7 +209,6 @@ class PruebasAccionesBiseccion(unittest.TestCase):
         self.assertEqual(self.pestana.var_ecuacion.get(), "")
         self.assertEqual(self.pestana.var_a.get(), "")
         self.assertEqual(self.pestana.var_b.get(), "")
-        self.assertFalse(self.pestana.var_continuidad.get())
         self.assertEqual(mostrar.call_args.args[1], "")
         self.pestana.entrada_ecuacion.focus_set.assert_called_once()
         self.pestana._cargar_ejemplo()

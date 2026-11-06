@@ -3,10 +3,11 @@
 import tkinter as tk
 from tkinter import ttk
 
-from nucleo.numeros import convertir_numero, limpiar_numero, EPSILON
+from nucleo.numeros import convertir_numero, limpiar_numero, escala_de
 from nucleo.matrices import (
     matriz_a_texto, dimensiones, sumar_matrices, restar_matrices,
     multiplicar_matriz_escalar, multiplicar_matrices, matriz_inversa_con_pasos,
+    matriz_transpuesta_con_pasos, rango_matriz_con_pasos,
 )
 from nucleo.determinantes import (
     recomendar_metodo, determinante_con_pasos, formatear_determinante,
@@ -186,6 +187,12 @@ class PestanaMatrices(ttk.Frame):
         # Abre la recomendación antes de habilitar la elección del método.
         ttk.Button(botones, text="Determinante de A", command=self._accion_determinante).grid(
             row=3, column=0, columnspan=2, padx=4, pady=4, sticky="ew")
+        ttk.Button(
+            botones, text="Transpuesta (Aᵀ)", command=self._accion_transpuesta,
+        ).grid(row=4, column=0, padx=4, pady=4, sticky="ew")
+        ttk.Button(
+            botones, text="Rango de A", command=self._accion_rango,
+        ).grid(row=4, column=1, padx=4, pady=4, sticky="ew")
 
         fila_escalar = ttk.Frame(marco)
         fila_escalar.pack(fill="x", pady=(8, 0))
@@ -212,12 +219,14 @@ class PestanaMatrices(ttk.Frame):
             a, b = self._obtener_ab()
             resultado = sumar_matrices(a, b)
             filas, columnas = dimensiones(a)
+            escala_a, escala_b, escala_resultado = map(escala_de, (a, b, resultado))
             calculos = []
             for i in range(filas):
                 for j in range(columnas):
                     calculos.append(
-                        f"C[{i + 1},{j + 1}] = {limpiar_numero(a[i][j])} + "
-                        f"{limpiar_numero(b[i][j])} = {limpiar_numero(resultado[i][j])}"
+                        f"C[{i + 1},{j + 1}] = {limpiar_numero(a[i][j], escala_a)} + "
+                        f"{limpiar_numero(b[i][j], escala_b)} = "
+                        f"{limpiar_numero(resultado[i][j], escala_resultado)}"
                     )
             reconstruida = restar_matrices(resultado, b)
             comprobado = matrices_aproximadamente_iguales(reconstruida, a)
@@ -239,12 +248,14 @@ class PestanaMatrices(ttk.Frame):
             a, b = self._obtener_ab()
             resultado = restar_matrices(a, b)
             filas, columnas = dimensiones(a)
+            escala_a, escala_b, escala_resultado = map(escala_de, (a, b, resultado))
             calculos = []
             for i in range(filas):
                 for j in range(columnas):
                     calculos.append(
-                        f"C[{i + 1},{j + 1}] = {limpiar_numero(a[i][j])} − "
-                        f"{limpiar_numero(b[i][j])} = {limpiar_numero(resultado[i][j])}"
+                        f"C[{i + 1},{j + 1}] = {limpiar_numero(a[i][j], escala_a)} − "
+                        f"{limpiar_numero(b[i][j], escala_b)} = "
+                        f"{limpiar_numero(resultado[i][j], escala_resultado)}"
                     )
             reconstruida = sumar_matrices(resultado, b)
             comprobado = matrices_aproximadamente_iguales(reconstruida, a)
@@ -267,14 +278,17 @@ class PestanaMatrices(ttk.Frame):
             escalar = convertir_numero(self.ent_escalar.get())
             resultado = multiplicar_matriz_escalar(a, escalar)
             filas, columnas = dimensiones(a)
+            escala_a, escala_resultado = map(escala_de, (a, resultado))
+            escala_escalar = escala_de([escalar])
             calculos = []
             for i in range(filas):
                 for j in range(columnas):
                     calculos.append(
-                        f"C[{i + 1},{j + 1}] = {limpiar_numero(escalar)} × "
-                        f"{limpiar_numero(a[i][j])} = {limpiar_numero(resultado[i][j])}"
+                        f"C[{i + 1},{j + 1}] = {limpiar_numero(escalar, escala_escalar)} × "
+                        f"{limpiar_numero(a[i][j], escala_a)} = "
+                        f"{limpiar_numero(resultado[i][j], escala_resultado)}"
                     )
-            if abs(escalar) > EPSILON:
+            if escalar != 0.0:
                 reconstruida = multiplicar_matriz_escalar(resultado, 1.0 / escalar)
                 comprobado = matrices_aproximadamente_iguales(reconstruida, a)
                 texto_comprobacion = (
@@ -290,14 +304,15 @@ class PestanaMatrices(ttk.Frame):
                 )
             texto_comprobacion += "\n\n✓ La comprobación es correcta." if comprobado else "\n\n✗ La comprobación no coincide."
             pasos = [
-                f"PASO 1. Tomar el escalar k = {limpiar_numero(escalar)}.",
+                f"PASO 1. Tomar el escalar k = {limpiar_numero(escalar, escala_escalar)}.",
                 "PASO 2. Multiplicar k por cada entrada de A:\n" + "\n".join(calculos),
                 "PASO 3. Formar la matriz resultante k·A.\n\n" + matriz_a_texto(resultado),
                 texto_comprobacion,
             ]
             mostrar_texto(
                 self.txt_resultado,
-                f"{limpiar_numero(escalar)} · A =\n{matriz_a_texto(resultado)}" + _separar_pasos(pasos),
+                f"{limpiar_numero(escalar, escala_escalar)} · A =\n"
+                f"{matriz_a_texto(resultado)}" + _separar_pasos(pasos),
             )
         except ValueError as error:
             mostrar_error(error)
@@ -309,17 +324,23 @@ class PestanaMatrices(ttk.Frame):
             resultado = multiplicar_matrices(a, b)
             filas_a, columnas_a = dimensiones(a)
             filas_b, columnas_b = dimensiones(b)
+            escala_a, escala_b, escala_resultado = map(escala_de, (a, b, resultado))
             calculos = []
             for i in range(filas_a):
                 for j in range(columnas_b):
                     productos = [a[i][k] * b[k][j] for k in range(columnas_a)]
                     expresion = " + ".join(
-                        f"({limpiar_numero(a[i][k])}×{limpiar_numero(b[k][j])})"
+                        f"({limpiar_numero(a[i][k], escala_a)}×"
+                        f"{limpiar_numero(b[k][j], escala_b)})"
                         for k in range(columnas_a)
                     )
-                    suma = " + ".join(limpiar_numero(x) for x in productos)
+                    escala_productos = escala_de(productos)
+                    suma = " + ".join(
+                        limpiar_numero(x, escala_productos) for x in productos
+                    )
                     calculos.append(
-                        f"C[{i + 1},{j + 1}] = {expresion} = {suma} = {limpiar_numero(resultado[i][j])}"
+                        f"C[{i + 1},{j + 1}] = {expresion} = {suma} = "
+                        f"{limpiar_numero(resultado[i][j], escala_resultado)}"
                     )
             recalculada = [
                 [sum(a[i][k] * b[k][j] for k in range(columnas_a)) for j in range(columnas_b)]
@@ -358,6 +379,30 @@ class PestanaMatrices(ttk.Frame):
                 + ("\n\n✓ Ambas multiplicaciones producen la identidad." if comprobado else "\n\n✗ La comprobación no produce la identidad.")
             )
             mostrar_texto(self.txt_resultado, "A⁻¹ =\n" + matriz_a_texto(resultado) + _separar_pasos(pasos))
+        except ValueError as error:
+            mostrar_error(error)
+
+    def _accion_transpuesta(self):
+        """Calcula Aᵀ y muestra el procedimiento y la comprobación."""
+        try:
+            matriz = self.entrada_a.obtener()
+            resultado, pasos = matriz_transpuesta_con_pasos(matriz)
+            mostrar_texto(
+                self.txt_resultado,
+                "Aᵀ =\n" + matriz_a_texto(resultado) + _separar_pasos(pasos),
+            )
+        except ValueError as error:
+            mostrar_error(error)
+
+    def _accion_rango(self):
+        """Calcula el rango de A y presenta la comprobación con Aᵀ."""
+        try:
+            matriz = self.entrada_a.obtener()
+            rango, pasos = rango_matriz_con_pasos(matriz)
+            mostrar_texto(
+                self.txt_resultado,
+                f"rango(A) = {rango}" + _separar_pasos(pasos),
+            )
         except ValueError as error:
             mostrar_error(error)
 

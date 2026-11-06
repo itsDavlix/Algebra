@@ -58,13 +58,13 @@ def limpiar_numero(numero, escala=None):
         return "0"
 
     # Evita convertir números gigantes a int solo para mostrarlos.
-    entero = round(numero)
-    if (
-        entero != 0
-        and abs(numero) < 1e15
-        and abs(numero - entero) <= EPSILON * abs(entero)
-    ):
-        return str(int(entero))
+    if abs(numero) < 1e15:
+        entero = round(numero)
+        if (
+            entero != 0
+            and abs(numero - entero) <= EPSILON * abs(entero)
+        ):
+            return str(int(entero))
 
     # Notación científica para magnitudes que serían poco legibles en decimal fijo.
     if abs(numero) >= 1e9 or abs(numero) < 1e-6:

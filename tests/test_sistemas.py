@@ -1,10 +1,12 @@
 """Pruebas de clasificación y tolerancias relativas de sistemas lineales."""
 
+import random
 import unittest
 
 from nucleo.matrices import multiplicar_matrices
 from nucleo.sistemas import (
     ErrorSistemaIncompatible, resolver_sistema_gauss_jordan_con_pasos,
+    solucion_general_texto, verificar_combinacion_lineal_con_pasos,
 )
 
 
@@ -52,3 +54,27 @@ class PruebasSistemas(unittest.TestCase):
         with self.assertRaises(ErrorSistemaIncompatible):
             resolver_sistema_gauss_jordan_con_pasos(a, b)
 
+    def test_solucion_general_y_sustitucion_de_parametros(self):
+        """Genera una forma paramétrica y verifica sustituciones aleatorias."""
+        a = [[1, 1, 1], [0, 1, -1]]
+        b = [[3], [1]]
+        texto = solucion_general_texto(a, b)
+        self.assertIn("x3 = t1", texto)
+        self.assertIn("x1 = 2 − 2·t1", texto)
+        self.assertIn("x2 = 1 + t1", texto)
+
+        generador = random.Random(731)
+        for _ in range(30):
+            parametro = generador.randint(-100, 100)
+            solucion = [[2 - 2 * parametro], [1 + parametro], [parametro]]
+            self.assertEqual(multiplicar_matrices(a, solucion), b)
+
+    def test_combinacion_lineal_muestra_coeficientes_generales(self):
+        """Incluye la familia paramétrica cuando los generadores son dependientes."""
+        es_combinacion, _, tipo, pasos = verificar_combinacion_lineal_con_pasos(
+            [[1, 0], [0, 1], [1, 1]], [2, 3],
+        )
+        self.assertTrue(es_combinacion)
+        self.assertEqual(tipo, "infinitas")
+        self.assertTrue(any("Familia de coeficientes:" in paso for paso in pasos))
+        self.assertTrue(any("c1 =" in paso and "t1" in paso for paso in pasos))

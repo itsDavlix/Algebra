@@ -628,7 +628,7 @@ class PestanaBiseccion(ttk.Frame):
         self.resultado_biseccion = None
         self.funcion_grafica = None
         self._actualizar_tabla_iteraciones_vacia()
-        self.mensaje_grafica = "Confirma la continuidad y pulsa «Resolver por bisección»."
+        self.mensaje_grafica = "Revisa la continuidad y pulsa «Resolver por bisección»."
         self._redibujar_grafica()
 
         condicion = (
@@ -644,7 +644,7 @@ class PestanaBiseccion(ttk.Frame):
             "del ancho inicial (mínimo 1e-12). Es la cota deseada del error en x.\n"
             f"Máximo {ajuste.max_iteraciones} iteraciones: al partir el intervalo "
             "por la mitad, bastan para alcanzar esa cota, con una de margen.\n"
-            "Revisa y confirma la continuidad en todo [a, b] antes de resolver.",
+            "Revisa la continuidad en todo [a, b] antes de resolver.",
         )
 
     def _redibujar_grafica(self, _evento=None):

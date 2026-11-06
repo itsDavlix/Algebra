@@ -1,7 +1,11 @@
 """Módulo de sistemas lineales: eliminación Gauss-Jordan y combinación lineal."""
 
 from nucleo.numeros import limpiar_numero, asegurar_finito, escala_de, umbral_cero
-from nucleo.matrices import dimensiones, matriz_ampliada_a_texto, matriz_a_texto
+from nucleo.matrices import (
+    dimensiones, matriz_ampliada_a_texto, matriz_a_texto,
+    _buscar_pivote, _normalizar_fila, _eliminar_columna,
+    _texto_paso_gauss_jordan,
+)
 
 
 class ErrorSistemaIncompatible(ValueError):
@@ -12,9 +16,8 @@ class ErrorSistemaIncompatible(ValueError):
         self.pasos = pasos or []
 
 
-# Reduce la matriz aumentada y registra las operaciones de fila realizadas.
-def resolver_sistema_gauss_jordan_con_pasos(a, b):
-    """Resuelve A·X=B por Gauss-Jordan y retorna también el procedimiento completo."""
+def _reducir_sistema(a, b):
+    """Reduce [A | B], identifica pivotes y conserva cada paso del procedimiento."""
     filas_a, columnas_a = dimensiones(a)
     filas_b, columnas_b = dimensiones(b)
     if filas_a != filas_b:
@@ -38,12 +41,9 @@ def resolver_sistema_gauss_jordan_con_pasos(a, b):
 
     # Busca pivotes y los intercambia para evitar dividir por valores nulos.
     for columna in range(columnas_a):
-        mejor_fila, mejor_valor = None, 0.0
-        for i in range(fila_pivote, filas_a):
-            valor = abs(aumentada[i][columna])
-            if valor > mejor_valor and valor > umbral_a:
-                mejor_valor, mejor_fila = valor, i
-
+        mejor_fila = _buscar_pivote(
+            aumentada, fila_pivote, columna, umbral_a,
+        )
         if mejor_fila is None:
             pasos.append(
                 f"PASO {numero_paso}. En la columna {columna + 1} no hay pivote no nulo; "
@@ -54,51 +54,36 @@ def resolver_sistema_gauss_jordan_con_pasos(a, b):
 
         if mejor_fila != fila_pivote:
             aumentada[fila_pivote], aumentada[mejor_fila] = aumentada[mejor_fila], aumentada[fila_pivote]
-            pasos.append(
-                f"PASO {numero_paso}. Intercambiar F{fila_pivote + 1} ↔ F{mejor_fila + 1}.\n\n"
-                + matriz_ampliada_a_texto(aumentada, columnas_a)
-            )
+            pasos.append(_texto_paso_gauss_jordan(
+                numero_paso,
+                f"Intercambiar F{fila_pivote + 1} ↔ F{mejor_fila + 1}.",
+                aumentada, columnas_a,
+            ))
             numero_paso += 1
 
         pivote = aumentada[fila_pivote][columna]
         if pivote != 1.0:
-            aumentada[fila_pivote] = [
-                asegurar_finito(valor / pivote, "Valor durante Gauss-Jordan")
-                for valor in aumentada[fila_pivote]
-            ]
-            pasos.append(
-                f"PASO {numero_paso}. Normalizar F{fila_pivote + 1}:\n"
-                f"F{fila_pivote + 1} ← F{fila_pivote + 1} ÷ ({limpiar_numero(pivote)}).\n\n"
-                + matriz_ampliada_a_texto(aumentada, columnas_a)
-            )
+            _normalizar_fila(aumentada, fila_pivote, pivote)
+            pasos.append(_texto_paso_gauss_jordan(
+                numero_paso, f"Normalizar F{fila_pivote + 1}:",
+                aumentada, columnas_a,
+                f"F{fila_pivote + 1} ← F{fila_pivote + 1} ÷ ({limpiar_numero(pivote, escala_de(a))}).",
+            ))
             numero_paso += 1
 
-        for i in range(filas_a):
-            if i == fila_pivote:
-                continue
-            factor = aumentada[i][columna]
-            if abs(factor) > umbral_a:
-                nueva_fila = []
-                for j in range(ancho):
-                    producto = asegurar_finito(
-                        factor * aumentada[fila_pivote][j],
-                        "Producto durante Gauss-Jordan",
-                    )
-                    nueva_fila.append(
-                        asegurar_finito(
-                            aumentada[i][j] - producto,
-                            "Valor durante Gauss-Jordan",
-                        )
-                    )
-                aumentada[i] = nueva_fila
-                signo = "−" if factor >= 0 else "+"
-                magnitud = limpiar_numero(abs(factor))
-                pasos.append(
-                    f"PASO {numero_paso}. Eliminar la entrada de F{i + 1}, columna {columna + 1}:\n"
-                    f"F{i + 1} ← F{i + 1} {signo} ({magnitud})F{fila_pivote + 1}.\n\n"
-                    + matriz_ampliada_a_texto(aumentada, columnas_a)
-                )
-                numero_paso += 1
+        cambios = _eliminar_columna(
+            aumentada, fila_pivote, columna, umbral_a, ancho,
+        )
+        for indice_fila, factor in cambios:
+            signo = "−" if factor >= 0 else "+"
+            magnitud = limpiar_numero(abs(factor), escala_de(a))
+            pasos.append(_texto_paso_gauss_jordan(
+                numero_paso,
+                f"Eliminar la entrada de F{indice_fila + 1}, columna {columna + 1}:",
+                aumentada, columnas_a,
+                f"F{indice_fila + 1} ← F{indice_fila + 1} {signo} ({magnitud})F{fila_pivote + 1}.",
+            ))
+            numero_paso += 1
 
         columnas_pivote.append(columna)
         fila_pivote += 1
@@ -118,11 +103,74 @@ def resolver_sistema_gauss_jordan_con_pasos(a, b):
                     pasos,
                 )
 
+    return aumentada, columnas_pivote, pasos, numero_paso, filas_a, columnas_a, columnas_b
+
+
+def _texto_solucion_general(reducida, columnas_pivote, columnas_a, columnas_b, nombre_variable):
+    """Construye ecuaciones paramétricas a partir de una matriz reducida."""
+    libres = [i for i in range(columnas_a) if i not in columnas_pivote]
+    escala = escala_de(reducida)
+    umbral = umbral_cero(escala)
+    bloques = []
+    for indice_b in range(columnas_b):
+        ecuaciones = []
+        if columnas_b > 1:
+            ecuaciones.append(f"Para la columna b{indice_b + 1}:")
+        fila_por_pivote = {
+            columna: indice_fila
+            for indice_fila, columna in enumerate(columnas_pivote)
+        }
+        parametro_por_columna = {
+            columna: indice_libre
+            for indice_libre, columna in enumerate(libres, 1)
+        }
+        for columna in range(columnas_a):
+            if columna in parametro_por_columna:
+                ecuaciones.append(
+                    f"{nombre_variable}{columna + 1} = "
+                    f"t{parametro_por_columna[columna]}"
+                )
+                continue
+            fila = fila_por_pivote[columna]
+            constante = reducida[fila][columnas_a + indice_b]
+            expresion = limpiar_numero(constante, escala)
+            for columna_libre, indice_libre in parametro_por_columna.items():
+                coeficiente = -reducida[fila][columna_libre]
+                if abs(coeficiente) <= umbral:
+                    continue
+                signo = " + " if coeficiente > 0 else " − "
+                magnitud = abs(coeficiente)
+                factor = "" if magnitud == 1 else f"{limpiar_numero(magnitud, escala)}·"
+                expresion += f"{signo}{factor}t{indice_libre}"
+            ecuaciones.append(f"{nombre_variable}{columna + 1} = {expresion}")
+        bloques.append("\n".join(ecuaciones))
+    return "\n\n".join(bloques)
+
+
+def solucion_general_texto(a, b, nombre_variable="x"):
+    """Devuelve la forma paramétrica de las soluciones de A·X=B."""
+    if not isinstance(nombre_variable, str) or not nombre_variable:
+        raise ValueError("El nombre de variable debe ser un texto no vacío.")
+    reducida, pivotes, _, _, _, columnas_a, columnas_b = _reducir_sistema(a, b)
+    return _texto_solucion_general(
+        reducida, pivotes, columnas_a, columnas_b, nombre_variable,
+    )
+
+
+# Reduce la matriz aumentada y registra las operaciones de fila realizadas.
+def resolver_sistema_gauss_jordan_con_pasos(a, b, nombre_variable="x"):
+    """Resuelve A·X=B por Gauss-Jordan y retorna también el procedimiento completo."""
+    if not isinstance(nombre_variable, str) or not nombre_variable:
+        raise ValueError("El nombre de variable debe ser un texto no vacío.")
+    (
+        reducida, columnas_pivote, pasos, numero_paso,
+        _, columnas_a, columnas_b,
+    ) = _reducir_sistema(a, b)
     # Coloca cada resultado en la variable correspondiente a su columna pivote.
     solucion = [[0.0] * columnas_b for _ in range(columnas_a)]
     for indice_fila, columna_variable in enumerate(columnas_pivote):
         for j in range(columnas_b):
-            solucion[columna_variable][j] = aumentada[indice_fila][columnas_a + j]
+            solucion[columna_variable][j] = reducida[indice_fila][columnas_a + j]
 
     tipo = "unica" if len(columnas_pivote) == columnas_a else "infinitas"
     detalle_tipo = (
@@ -130,10 +178,15 @@ def resolver_sistema_gauss_jordan_con_pasos(a, b):
         if tipo == "unica"
         else "Hay columnas sin pivote; existen infinitas soluciones. Para mostrar una solución particular, las variables libres se fijan en 0."
     )
-    pasos.append(
+    paso_solucion = (
         f"PASO {numero_paso}. Leer la solución de la matriz reducida.\n"
         f"{detalle_tipo}\n\nX =\n{matriz_a_texto(solucion)}"
     )
+    if tipo == "infinitas":
+        paso_solucion += "\n\nSolución general:\n" + _texto_solucion_general(
+            reducida, columnas_pivote, columnas_a, columnas_b, nombre_variable,
+        )
+    pasos.append(paso_solucion)
     return solucion, tipo, columnas_pivote, pasos
 
 
@@ -170,7 +223,9 @@ def verificar_combinacion_lineal_con_pasos(generadores, objetivo):
     ]
 
     try:
-        solucion, tipo, _, pasos_gauss = resolver_sistema_gauss_jordan_con_pasos(a, b)
+        solucion, tipo, _, pasos_gauss = resolver_sistema_gauss_jordan_con_pasos(
+            a, b, nombre_variable="c",
+        )
     except ErrorSistemaIncompatible as error:
         pasos = pasos_previos + [
             paso.replace("PASO ", "GAUSS-JORDAN · PASO ", 1) for paso in error.pasos
@@ -182,15 +237,22 @@ def verificar_combinacion_lineal_con_pasos(generadores, objetivo):
         return False, None, None, pasos
 
     coeficientes = [fila[0] for fila in solucion]
+    escala_coeficientes = escala_de(coeficientes)
     pasos = pasos_previos + [
         paso.replace("PASO ", "GAUSS-JORDAN · PASO ", 1) for paso in pasos_gauss
     ]
     expresion = " + ".join(
-        f"({limpiar_numero(c)})v{i + 1}" for i, c in enumerate(coeficientes)
+        f"({limpiar_numero(c, escala_coeficientes)})v{i + 1}"
+        for i, c in enumerate(coeficientes)
     )
     pasos.append(
         "CONCLUSIÓN. Se encontraron coeficientes que satisfacen la ecuación:\n"
         f"{expresion} = vector objetivo."
+        + (
+            "\n\nFamilia de coeficientes:\n"
+            + solucion_general_texto(a, b, nombre_variable="c")
+            if tipo == "infinitas" else ""
+        )
     )
     return True, coeficientes, tipo, pasos
 

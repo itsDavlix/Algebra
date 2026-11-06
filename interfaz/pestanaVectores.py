@@ -3,9 +3,11 @@
 import tkinter as tk
 from tkinter import ttk
 
-from nucleo.numeros import convertir_numero, limpiar_numero, asegurar_finito, EPSILON
+from nucleo.numeros import convertir_numero, limpiar_numero, asegurar_finito, escala_de
 from nucleo.vectores import (
     leer_vector, vector_a_texto, sumar_vectores, restar_vectores, multiplicar_vector_escalar,
+    producto_punto_con_pasos, producto_cruz_con_pasos, norma_vector_con_pasos,
+    vectores_linealmente_independientes_con_pasos,
 )
 from nucleo.sistemas import verificar_combinacion_lineal_con_pasos
 from nucleo.comprobaciones import vectores_aproximadamente_iguales
@@ -58,6 +60,21 @@ class PestanaVectores(ttk.Frame):
         ttk.Button(botones, text="Multiplicar por escalar (k·V1)", command=self._accion_escalar).pack(side="left", padx=5)
         ttk.Button(botones, text="Limpiar", command=self._limpiar_operaciones).pack(side="right")
 
+        botones_adicionales = ttk.Frame(marco)
+        botones_adicionales.pack(fill="x", pady=(5, 0))
+        ttk.Button(
+            botones_adicionales, text="Producto punto (V1·V2)",
+            command=self._accion_producto_punto,
+        ).pack(side="left", padx=(0, 5))
+        ttk.Button(
+            botones_adicionales, text="Producto cruz (V1×V2)",
+            command=self._accion_producto_cruz,
+        ).pack(side="left", padx=5)
+        ttk.Button(
+            botones_adicionales, text="Norma de V1",
+            command=self._accion_norma,
+        ).pack(side="left", padx=5)
+
         ttk.Label(marco, text="Resultado y procedimiento:").pack(anchor="w", pady=(16, 4))
         marco_resultado, self.txt_resultado = crear_area_resultado(marco, alto=9)
         marco_resultado.pack(fill="both", expand=True)
@@ -68,8 +85,10 @@ class PestanaVectores(ttk.Frame):
             v1 = leer_vector(self.ent_v1.get(), "V1")
             v2 = leer_vector(self.ent_v2.get(), "V2")
             resultado = sumar_vectores(v1, v2)
+            escala_v1, escala_v2, escala_resultado = map(escala_de, (v1, v2, resultado))
             operaciones = [
-                f"Componente {i + 1}: {limpiar_numero(a)} + {limpiar_numero(b)} = {limpiar_numero(r)}"
+                f"Componente {i + 1}: {limpiar_numero(a, escala_v1)} + "
+                f"{limpiar_numero(b, escala_v2)} = {limpiar_numero(r, escala_resultado)}"
                 for i, (a, b, r) in enumerate(zip(v1, v2, resultado))
             ]
             reconstruido = restar_vectores(resultado, v2)
@@ -92,8 +111,10 @@ class PestanaVectores(ttk.Frame):
             v1 = leer_vector(self.ent_v1.get(), "V1")
             v2 = leer_vector(self.ent_v2.get(), "V2")
             resultado = restar_vectores(v1, v2)
+            escala_v1, escala_v2, escala_resultado = map(escala_de, (v1, v2, resultado))
             operaciones = [
-                f"Componente {i + 1}: {limpiar_numero(a)} − {limpiar_numero(b)} = {limpiar_numero(r)}"
+                f"Componente {i + 1}: {limpiar_numero(a, escala_v1)} − "
+                f"{limpiar_numero(b, escala_v2)} = {limpiar_numero(r, escala_resultado)}"
                 for i, (a, b, r) in enumerate(zip(v1, v2, resultado))
             ]
             reconstruido = sumar_vectores(resultado, v2)
@@ -116,11 +137,14 @@ class PestanaVectores(ttk.Frame):
             v1 = leer_vector(self.ent_v1.get(), "V1")
             escalar = convertir_numero(self.ent_escalar.get())
             resultado = multiplicar_vector_escalar(v1, escalar)
+            escala_v1, escala_resultado = map(escala_de, (v1, resultado))
+            escala_escalar = escala_de([escalar])
             operaciones = [
-                f"Componente {i + 1}: {limpiar_numero(escalar)} × {limpiar_numero(a)} = {limpiar_numero(r)}"
+                f"Componente {i + 1}: {limpiar_numero(escalar, escala_escalar)} × "
+                f"{limpiar_numero(a, escala_v1)} = {limpiar_numero(r, escala_resultado)}"
                 for i, (a, r) in enumerate(zip(v1, resultado))
             ]
-            if abs(escalar) > EPSILON:
+            if escalar != 0.0:
                 reconstruido = multiplicar_vector_escalar(resultado, 1.0 / escalar)
                 comprobado = vectores_aproximadamente_iguales(reconstruido, v1)
                 texto_comprobacion = (
@@ -136,14 +160,15 @@ class PestanaVectores(ttk.Frame):
                 )
             texto_comprobacion += "✓ La comprobación es correcta." if comprobado else "✗ La comprobación no coincide."
             pasos = [
-                f"PASO 1. Tomar k = {limpiar_numero(escalar)}.",
+                f"PASO 1. Tomar k = {limpiar_numero(escalar, escala_escalar)}.",
                 "PASO 2. Multiplicar k por cada componente de V1:\n" + "\n".join(operaciones),
                 "PASO 3. Formar el vector resultado:\nk·V1 = " + vector_a_texto(resultado),
                 texto_comprobacion,
             ]
             mostrar_texto(
                 self.txt_resultado,
-                f"{limpiar_numero(escalar)} · V1 = {vector_a_texto(resultado)}" + _bloque_pasos(pasos),
+                f"{limpiar_numero(escalar, escala_escalar)} · V1 = "
+                f"{vector_a_texto(resultado)}" + _bloque_pasos(pasos),
             )
         except ValueError as error:
             mostrar_error(error)
@@ -152,6 +177,46 @@ class PestanaVectores(ttk.Frame):
         for entrada in (self.ent_v1, self.ent_v2, self.ent_escalar):
             entrada.delete(0, "end")
         mostrar_texto(self.txt_resultado, "")
+
+    def _accion_producto_punto(self):
+        """Calcula el producto punto con procedimiento y comprobación simétrica."""
+        try:
+            v1 = leer_vector(self.ent_v1.get(), "V1")
+            v2 = leer_vector(self.ent_v2.get(), "V2")
+            resultado, pasos = producto_punto_con_pasos(v1, v2)
+            mostrar_texto(
+                self.txt_resultado,
+                f"V1·V2 = {limpiar_numero(resultado, escala_de([resultado]))}"
+                + _bloque_pasos(pasos),
+            )
+        except ValueError as error:
+            mostrar_error(error)
+
+    def _accion_producto_cruz(self):
+        """Calcula el producto cruz en R³ y muestra su comprobación de ortogonalidad."""
+        try:
+            v1 = leer_vector(self.ent_v1.get(), "V1")
+            v2 = leer_vector(self.ent_v2.get(), "V2")
+            resultado, pasos = producto_cruz_con_pasos(v1, v2)
+            mostrar_texto(
+                self.txt_resultado,
+                f"V1×V2 = {vector_a_texto(resultado)}" + _bloque_pasos(pasos),
+            )
+        except ValueError as error:
+            mostrar_error(error)
+
+    def _accion_norma(self):
+        """Calcula la norma euclidiana de V1 y muestra la comprobación."""
+        try:
+            v1 = leer_vector(self.ent_v1.get(), "V1")
+            resultado, pasos = norma_vector_con_pasos(v1)
+            mostrar_texto(
+                self.txt_resultado,
+                f"||V1|| = {limpiar_numero(resultado, escala_de([resultado]))}"
+                + _bloque_pasos(pasos),
+            )
+        except ValueError as error:
+            mostrar_error(error)
 
     def _construir_combinacion_lineal(self):
         # Recibe los generadores y el vector que se quiere expresar con ellos.
@@ -173,6 +238,10 @@ class PestanaVectores(ttk.Frame):
         botones.pack(fill="x", pady=5)
         ttk.Button(botones, text="Comprobar combinación lineal", style="Accion.TButton", command=self._accion_combinacion_lineal).pack(side="left", fill="x", expand=True)
         ttk.Button(botones, text="Limpiar", command=self._limpiar_combinacion).pack(side="left", padx=(6, 0))
+        ttk.Button(
+            marco, text="Comprobar independencia lineal",
+            command=self._accion_independencia,
+        ).pack(fill="x", pady=(2, 0))
 
         ttk.Label(marco, text="Resultado y procedimiento:").pack(anchor="w", pady=(10, 4))
         marco_resultado, self.txt_resultado_combinacion = crear_area_resultado(marco, alto=11, fuente=("Segoe UI", 10))
@@ -194,7 +263,8 @@ class PestanaVectores(ttk.Frame):
             else:
                 encabezado = "RESULTADO: SÍ es combinación lineal.\n\nCoeficientes:\n"
                 encabezado += "\n".join(
-                    f"c{i + 1} = {limpiar_numero(c)}" for i, c in enumerate(coeficientes)
+                    f"c{i + 1} = {limpiar_numero(c, escala_coeficientes)}"
+                    for i, c in enumerate(coeficientes)
                 )
                 encabezado += "\n\n" + (
                     "La combinación es única."
@@ -203,6 +273,7 @@ class PestanaVectores(ttk.Frame):
                 )
 
             if es_combinacion:
+                escala_coeficientes = escala_de(coeficientes)
                 reconstruido = []
                 for componente in range(len(objetivo)):
                     valor = sum(
@@ -226,3 +297,23 @@ class PestanaVectores(ttk.Frame):
         self.txt_generadores.delete("1.0", "end")
         self.ent_objetivo.delete(0, "end")
         mostrar_texto(self.txt_resultado_combinacion, "")
+
+    def _accion_independencia(self):
+        """Determina si los vectores escritos como filas son independientes."""
+        try:
+            lineas = self.txt_generadores.get("1.0", "end").strip().splitlines()
+            vectores = [
+                leer_vector(linea, f"vector {i}")
+                for i, linea in enumerate(lineas, 1) if linea.strip()
+            ]
+            independientes, pasos = vectores_linealmente_independientes_con_pasos(
+                vectores,
+            )
+            texto = (
+                "RESULTADO: el conjunto es linealmente independiente."
+                if independientes else
+                "RESULTADO: el conjunto es linealmente dependiente."
+            )
+            mostrar_texto(self.txt_resultado_combinacion, texto + _bloque_pasos(pasos))
+        except ValueError as error:
+            mostrar_error(error)
