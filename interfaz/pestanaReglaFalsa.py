@@ -1,0 +1,207 @@
+"""Pestaña de Regula Falsi con la gráfica y la tabla de Bisección."""
+
+from tkinter import ttk
+
+from interfaz.ayudas import mostrar_error, mostrar_texto
+from interfaz.pestanaBiseccion import PestanaBiseccion, _numero_tabla
+from nucleo.biseccion import MAX_ITERACIONES, autoajustar_biseccion, preparar_funcion
+from nucleo.numeros import convertir_numero
+from nucleo.reglafalsa import (
+    nota_estancamiento, resolver_reglafalsa,
+)
+
+
+def _numero_regla_falsa(valor):
+    """Representa valores opcionales de la tabla sin perder cifras útiles."""
+    return "—" if valor is None else _numero_tabla(valor)
+
+
+class PestanaReglaFalsa(PestanaBiseccion):
+    """Calcula una raíz por falsa posición y comparte la gráfica de Bisección."""
+
+    def __init__(self, padre):
+        super().__init__(padre)
+        self.txt_resultado.configure(height=7)
+        self.marco_entrada.configure(text="Resolver f(x) = 0 por Regula Falsi")
+        self.tabla_iteraciones.heading("c", text="Falsa posición")
+        self.tabla_iteraciones.heading("error", text="Error aprox.")
+        for widget in self.marco_entrada.winfo_children():
+            if (isinstance(widget, ttk.Button)
+                    and widget.cget("text") == "Resolver por bisección"):
+                widget.configure(text="Resolver por Regula Falsi")
+                break
+        self._cargar_ejemplo()
+
+    def _accion_resolver(self, _evento=None):
+        """Valida las entradas, ejecuta Regula Falsi y actualiza sus vistas."""
+        try:
+            a = convertir_numero(self.var_a.get(), "El extremo a")
+            b = convertir_numero(self.var_b.get(), "El extremo b")
+            tolerancia = convertir_numero(self.var_tolerancia.get(), "La tolerancia")
+            texto_iteraciones = self.var_iteraciones.get().strip()
+            if (not texto_iteraciones.isascii() or not texto_iteraciones.isdecimal()
+                    or len(texto_iteraciones) > 4):
+                raise ValueError(
+                    f"El máximo de iteraciones debe ser un entero entre 1 y {MAX_ITERACIONES}."
+                )
+            resultado = resolver_reglafalsa(
+                self.var_ecuacion.get(), a, b, tolerancia, int(texto_iteraciones),
+            )
+            mostrar_texto(self.txt_resultado, self._resumen_regla_falsa(resultado))
+            self.resultado_biseccion = resultado
+            self.funcion_grafica, _ = preparar_funcion(self.var_ecuacion.get())
+            self._actualizar_tabla_iteraciones(resultado)
+            self._redibujar_grafica()
+        except ValueError as error:
+            mostrar_texto(self.txt_resultado, "No se pudo resolver la ecuación.\n\n" + str(error))
+            self._actualizar_tabla_iteraciones_vacia()
+            self.resultado_biseccion = None
+            self.funcion_grafica = None
+            self.mensaje_grafica = "Corrige los datos y vuelve a resolver."
+            self._mostrar_mensaje_grafica()
+            mostrar_error(error)
+
+    @staticmethod
+    def _resumen_regla_falsa(resultado):
+        estado = "convergencia alcanzada" if resultado.convergio else "aproximación sin convergencia"
+        error = _numero_regla_falsa(resultado.error)
+        lineas = [
+            f"{estado}: x ≈ {_numero_tabla(resultado.raiz)}",
+            f"f(x) = {_numero_tabla(resultado.valor_funcion)}",
+            f"Error estimado |c − c anterior|: {error}",
+            f"Tolerancia: {_numero_tabla(resultado.tolerancia)}    "
+            f"Iteraciones: {len(resultado.iteraciones)}",
+            f"Motivo: {resultado.motivo}",
+        ]
+        aviso = nota_estancamiento(resultado)
+        if aviso:
+            lineas.append("AVISO: " + aviso)
+        else:
+            lineas.append("La tolerancia no es una cota del error real en x.")
+        return "\n".join(lineas)
+
+    def _actualizar_tabla_iteraciones(self, resultado):
+        """Muestra cada falsa posición y las evaluaciones que justifican el paso."""
+        tabla = self.tabla_iteraciones
+        elementos = tabla.get_children()
+        if elementos:
+            tabla.delete(*elementos)
+
+        for paso in resultado.iteraciones:
+            iid = f"iteracion-{paso.numero}"
+            estilo_fila = "fila_par" if paso.numero % 2 else "fila_impar"
+            tabla.insert(
+                "", "end", iid=iid, text=f"Iteración {paso.numero}",
+                values=(
+                    _numero_tabla(paso.a), _numero_tabla(paso.b),
+                    _numero_tabla(paso.c), _numero_tabla(paso.fc),
+                    _numero_regla_falsa(paso.error),
+                ),
+                open=False, tags=(estilo_fila,),
+            )
+            detalles = (
+                (
+                    "c = b − f(b)(a−b) / (f(a)−f(b))",
+                    ("", "", _numero_tabla(paso.c), "", ""),
+                ),
+                (f"Evaluación: f(a) = {_numero_tabla(paso.fa)}", ("",) * 5),
+                (f"Evaluación: f(b) = {_numero_tabla(paso.fb)}", ("",) * 5),
+                (f"Evaluación: f(c) = {_numero_tabla(paso.fc)}", ("",) * 5),
+                (
+                    "Error aproximado |c − c anterior|",
+                    ("", "", "", "", _numero_regla_falsa(paso.error)
+                     if paso.error is not None else ""),
+                ),
+                (
+                    "Error relativo aproximado εa",
+                    (
+                        "", "", "", "",
+                        "—" if paso.error_relativo is None
+                        else f"{_numero_tabla(paso.error_relativo)} %",
+                    ),
+                ),
+            )
+            for texto, valores in detalles:
+                tabla.insert(
+                    iid, "end", text=texto, values=valores, tags=("detalle",),
+                )
+
+            if paso.numero == len(resultado.iteraciones):
+                decision = "Parada: " + resultado.motivo
+                valores_decision = ("",) * 5
+                estilo_decision = "parada_ok" if resultado.convergio else "parada_no"
+            elif paso.extremo_movido == "b":
+                decision = "Decisión: f(a)·f(c) < 0 → b = c"
+                valores_decision = (
+                    _numero_tabla(paso.a), _numero_tabla(paso.c), "", "", "",
+                )
+                estilo_decision = "decision"
+            elif paso.extremo_movido == "a":
+                decision = "Decisión: f(c)·f(b) < 0 → a = c"
+                valores_decision = (
+                    _numero_tabla(paso.c), _numero_tabla(paso.b), "", "", "",
+                )
+                estilo_decision = "decision"
+            else:
+                decision = "Parada: " + resultado.motivo
+                valores_decision = ("",) * 5
+                estilo_decision = "parada_ok" if resultado.convergio else "parada_no"
+            tabla.insert(
+                iid, "end", text=decision, values=valores_decision,
+                tags=(estilo_decision,),
+            )
+
+    def _accion_autoajustar(self):
+        """Propone un intervalo con cambio de signo y fija un límite conservador."""
+        try:
+            ajuste = autoajustar_biseccion(self.var_ecuacion.get())
+        except ValueError as error:
+            mostrar_texto(self.txt_resultado, "No se pudo autoajustar.\n\n" + str(error))
+            mostrar_error(error)
+            return
+
+        self.var_a.set(f"{ajuste.a:.12g}")
+        self.var_b.set(f"{ajuste.b:.12g}")
+        self.var_tolerancia.set(f"{ajuste.tolerancia:.12g}")
+        self.var_iteraciones.set("100")
+        self.resultado_biseccion = None
+        self.funcion_grafica = None
+        self._actualizar_tabla_iteraciones_vacia()
+        self.mensaje_grafica = "Revisa la continuidad y pulsa «Resolver por Regula Falsi»."
+        self._redibujar_grafica()
+        condicion = (
+            "hay una raíz en un extremo"
+            if ajuste.fa == 0 or ajuste.fb == 0 else
+            "los valores tienen signos opuestos"
+        )
+        mostrar_texto(
+            self.txt_resultado,
+            "Autoajustar no calcula la raíz: muestrea f(x) en intervalos "
+            "crecientes y propone puntos con cambio de signo.\n"
+            f"Intervalo propuesto [{ajuste.a:.7g}, {ajuste.b:.7g}]: "
+            f"f(a) = {ajuste.fa:.7g} y f(b) = {ajuste.fb:.7g}; {condicion}.\n"
+            "Límites: puede pasar por alto raíces sin cambio de signo; el "
+            "cambio de signo no demuestra continuidad ni descarta polos.\n"
+            f"Tolerancia {ajuste.tolerancia:.7g}: se propone como diferencia "
+            "entre aproximaciones consecutivas; no es una cota del error real en x.\n"
+            "Máximo 100 iteraciones: Regula Falsi no tiene un número de pasos "
+            "predecible y puede estancarse en un extremo.\n"
+            "Revisa la continuidad en todo [a, b] antes de resolver.",
+        )
+
+    def _cargar_ejemplo(self):
+        """Carga el ejemplo conocido de la raíz de x^3 - x - 2."""
+        self.var_ecuacion.set("x^3 - x - 2 = 0")
+        self.var_a.set("1")
+        self.var_b.set("2")
+        self.var_tolerancia.set("1e-6")
+        self.var_iteraciones.set("100")
+        self.resultado_biseccion = None
+        self.funcion_grafica = None
+        self._actualizar_tabla_iteraciones_vacia()
+        self.mensaje_grafica = "Resuelve la ecuación para ver su gráfica y la raíz aproximada."
+        self._redibujar_grafica()
+        mostrar_texto(
+            self.txt_resultado,
+            "Pulsa «Resolver por Regula Falsi» para calcular la raíz del ejemplo.",
+        )
