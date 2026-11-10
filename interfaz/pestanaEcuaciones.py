@@ -34,20 +34,20 @@ class PestanaEcuaciones(ttk.Frame):
         marco.grid(row=0, column=0, sticky="nsew", padx=(0, 7))
 
         ttk.Label(marco, text="Matriz A:").pack(anchor="w")
-        self.txt_a = tk.Text(marco, height=7)
+        self.txt_a = tk.Text(marco, width=38, height=5)
         self.txt_a.pack(fill="x", pady=(2, 8))
         self.txt_a.insert("1.0", "2 1\n1 -1")
         AyudaEmergente(self.txt_a, "Matriz de coeficientes del sistema.")
 
         ttk.Label(marco, text="Matriz B:").pack(anchor="w")
-        self.txt_b = tk.Text(marco, height=7)
+        self.txt_b = tk.Text(marco, width=38, height=5)
         self.txt_b.pack(fill="x", pady=(2, 8))
         self.txt_b.insert("1.0", "5\n1")
 
         ttk.Button(marco, text="Resolver ecuación matricial", style="Accion.TButton", command=self._accion_resolver).pack(fill="x", pady=5)
 
         ttk.Label(marco, text="Para comprobar una X concreta, escríbela aquí:").pack(anchor="w", pady=(12, 0))
-        self.txt_x = tk.Text(marco, height=7)
+        self.txt_x = tk.Text(marco, width=38, height=5)
         self.txt_x.pack(fill="x", pady=(2, 8))
         self.txt_x.insert("1.0", "2\n1")
 

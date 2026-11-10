@@ -20,6 +20,100 @@ def _separar_pasos(pasos):
     return "\n\n" + ("\n\n" + "─" * 56 + "\n\n").join(pasos)
 
 
+class BarraDesplazamiento(tk.Canvas):
+    """Barra visible y tematizable para desplazar el lienzo de una matriz."""
+
+    def __init__(self, padre, orientacion, command):
+        self.orientacion = orientacion
+        self.command = command
+        self._primero = 0.0
+        self._ultimo = 1.0
+        self._inicio_arrastre = None
+        self._posicion_arrastre = 0.0
+        self._color_thumb = "#7965B5"
+        super().__init__(
+            padre,
+            width=16 if orientacion == "vertical" else 1,
+            height=1 if orientacion == "vertical" else 16,
+            background="#E4DDF1", highlightthickness=0, borderwidth=0,
+            cursor="arrow",
+        )
+        self.bind("<Configure>", self._dibujar)
+        self.bind("<Button-1>", self._iniciar_arrastre)
+        self.bind("<B1-Motion>", self._arrastrar)
+        self.bind("<ButtonRelease-1>", self._terminar_arrastre)
+
+    def configurar_colores(self, pista, thumb):
+        self.configure(background=pista)
+        self._color_thumb = thumb
+        self._dibujar()
+
+    def set(self, primero, ultimo):
+        self._primero = float(primero)
+        self._ultimo = float(ultimo)
+        self._dibujar()
+
+    def _longitud(self):
+        dimension = self.winfo_height if self.orientacion == "vertical" else self.winfo_width
+        return max(1, dimension())
+
+    def _limites_thumb(self):
+        inicio = 3
+        longitud = max(1, self._longitud() - 6)
+        visible = max(0.0, min(1.0, self._ultimo - self._primero))
+        largo_thumb = longitud if visible >= 1 else min(
+            longitud, max(28, int(longitud * visible)),
+        )
+        rango = max(0, longitud - largo_thumb)
+        posicion = inicio + (
+            self._primero / max(1e-12, 1 - visible) * rango if visible < 1 else 0
+        )
+        return posicion, posicion + largo_thumb
+
+    def _dibujar(self, _evento=None):
+        self.delete("thumb")
+        primero, ultimo = self._limites_thumb()
+        if self.orientacion == "vertical":
+            ancho = max(1, self.winfo_width())
+            self.create_rectangle(
+                3, primero, ancho - 3, ultimo, fill=self._color_thumb,
+                outline="", tags="thumb",
+            )
+        else:
+            alto = max(1, self.winfo_height())
+            self.create_rectangle(
+                primero, 3, ultimo, alto - 3, fill=self._color_thumb,
+                outline="", tags="thumb",
+            )
+
+    def _coordenada(self, evento):
+        return evento.y if self.orientacion == "vertical" else evento.x
+
+    def _iniciar_arrastre(self, evento):
+        self._inicio_arrastre = None
+        coordenada = self._coordenada(evento)
+        inicio, final = self._limites_thumb()
+        if inicio <= coordenada <= final:
+            self._inicio_arrastre = coordenada
+            self._posicion_arrastre = self._primero
+            return
+        direccion = -1 if coordenada < inicio else 1
+        self.command("scroll", direccion, "pages")
+
+    def _arrastrar(self, evento):
+        if self._inicio_arrastre is None:
+            return
+        longitud = max(1, self._longitud() - 6)
+        _, final = self._limites_thumb()
+        largo_thumb = final - self._limites_thumb()[0]
+        rango = max(1, longitud - largo_thumb)
+        desplazamiento = (self._coordenada(evento) - self._inicio_arrastre) / rango
+        self.command("moveto", min(1.0, max(0.0, self._posicion_arrastre + desplazamiento)))
+
+    def _terminar_arrastre(self, _evento):
+        self._inicio_arrastre = None
+
+
 class EntradaMatriz(ttk.Frame):
     """Editor de matriz en celdas para no depender de espacios entre números."""
 
@@ -34,18 +128,10 @@ class EntradaMatriz(ttk.Frame):
         controles = ttk.Frame(self)
         controles.pack(fill="x", pady=(0, 4))
         ttk.Label(controles, text=f"Matriz {nombre}:").pack(side="left")
-        ttk.Label(controles, text="Filas").pack(side="left", padx=(12, 3))
         self.filas_var = tk.StringVar(value=str(filas))
-        ttk.Spinbox(
-            controles, from_=1, to=40, width=3, textvariable=self.filas_var,
-            state="readonly", command=self._cambiar_tamano,
-        ).pack(side="left")
-        ttk.Label(controles, text="Columnas").pack(side="left", padx=(8, 3))
         self.columnas_var = tk.StringVar(value=str(columnas))
-        ttk.Spinbox(
-            controles, from_=1, to=40, width=3, textvariable=self.columnas_var,
-            state="readonly", command=self._cambiar_tamano,
-        ).pack(side="left")
+        self._crear_control_dimension(controles, "Filas", self.filas_var)
+        self._crear_control_dimension(controles, "Columnas", self.columnas_var)
 
         # El lienzo permite desplazar la cuadrícula cuando no cabe completa.
         marco = ttk.Frame(self)
@@ -53,8 +139,8 @@ class EntradaMatriz(ttk.Frame):
         self.canvas = tk.Canvas(
             marco, height=120, background="white", highlightthickness=0
         )
-        barra_y = ttk.Scrollbar(marco, orient="vertical", command=self.canvas.yview)
-        barra_x = ttk.Scrollbar(marco, orient="horizontal", command=self.canvas.xview)
+        barra_y = BarraDesplazamiento(marco, "vertical", self.canvas.yview)
+        barra_x = BarraDesplazamiento(marco, "horizontal", self.canvas.xview)
         self.canvas.configure(yscrollcommand=barra_y.set, xscrollcommand=barra_x.set)
         self.canvas.grid(row=0, column=0, sticky="nsew")
         barra_y.grid(row=0, column=1, sticky="ns")
@@ -69,6 +155,28 @@ class EntradaMatriz(ttk.Frame):
         self.contenido.bind("<Configure>", self._actualizar_scrollregion)
         self.canvas.bind("<Configure>", self._ajustar_ancho_contenido)
         self._dibujar_celdas(valores)
+
+    def _crear_control_dimension(self, padre, nombre, variable):
+        grupo = ttk.Frame(padre)
+        grupo.pack(side="left", padx=(12, 0))
+        ttk.Label(grupo, text=nombre).pack(side="left", padx=(0, 4))
+        ttk.Button(
+            grupo, text="-", width=2, style="Matriz.Control.TButton",
+            command=lambda: self._ajustar_dimension(variable, -1),
+        ).pack(side="left")
+        ttk.Label(
+            grupo, textvariable=variable, width=3, anchor="center",
+            style="Matriz.Valor.TLabel",
+        ).pack(side="left", padx=2)
+        ttk.Button(
+            grupo, text="+", width=2, style="Matriz.Control.TButton",
+            command=lambda: self._ajustar_dimension(variable, 1),
+        ).pack(side="left")
+
+    def _ajustar_dimension(self, variable, cambio):
+        tamano = min(40, max(1, int(variable.get()) + cambio))
+        variable.set(str(tamano))
+        self._cambiar_tamano()
 
     def _actualizar_scrollregion(self, _evento=None):
         self.canvas.configure(scrollregion=self.canvas.bbox("all"))

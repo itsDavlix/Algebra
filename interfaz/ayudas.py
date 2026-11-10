@@ -21,13 +21,15 @@ def mostrar_error(error):
     messagebox.showerror("Revisa los datos", str(error))
 
 
-def crear_area_resultado(padre, alto=10, fuente=("Consolas", 11)):
+def crear_area_resultado(padre, alto=10, fuente=("TkFixedFont", 11)):
     """Crea un widget Text de solo salida, con barra de desplazamiento vertical."""
     marco = ttk.Frame(padre)
     marco.columnconfigure(0, weight=1)
     marco.rowconfigure(0, weight=1)
 
-    texto = tk.Text(marco, height=alto, wrap="word", font=fuente, state="disabled")
+    texto = tk.Text(
+        marco, width=52, height=alto, wrap="word", font=fuente, state="disabled",
+    )
     barra = ttk.Scrollbar(marco, orient="vertical", command=texto.yview)
     texto.configure(yscrollcommand=barra.set)
     texto.grid(row=0, column=0, sticky="nsew")

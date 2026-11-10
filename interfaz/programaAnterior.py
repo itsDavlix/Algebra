@@ -25,7 +25,10 @@ class PestanaProgramaAnterior(ttk.Frame):
             "2. Busca el archivo en tu computadora.\n"
             "3. El programa se abrirá en una ventana aparte."
         )
-        ttk.Label(marco, text=texto, justify="left", wraplength=760, font=("Segoe UI", 11)).pack(anchor="w", pady=(0, 18))
+        ttk.Label(
+            marco, text=texto, justify="left", wraplength=760,
+            font=("TkDefaultFont", 11),
+        ).pack(anchor="w", pady=(0, 18))
 
         ttk.Button(marco, text="Seleccionar y abrir .py", style="Accion.TButton", command=self._accion_ejecutar).pack(anchor="w")
 

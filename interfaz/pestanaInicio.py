@@ -38,4 +38,4 @@ class PestanaInicio(ttk.Frame):
             "• Programa anterior: permite ejecutar un archivo .py elaborado previamente.\n\n"
             "El programa usa únicamente Python estándar, sin bibliotecas externas."
         )
-        ttk.Label(marco, text=texto, justify="left", font=("Segoe UI", 11)).pack(anchor="nw")
+        ttk.Label(marco, text=texto, justify="left", font=("TkDefaultFont", 11)).pack(anchor="nw")

@@ -55,25 +55,38 @@ class PestanaVectores(ttk.Frame):
 
         botones = ttk.Frame(marco)
         botones.pack(fill="x", pady=4)
-        ttk.Button(botones, text="Sumar (V1 + V2)", command=self._accion_suma).pack(side="left", padx=(0, 5))
-        ttk.Button(botones, text="Restar (V1 − V2)", command=self._accion_resta).pack(side="left", padx=5)
-        ttk.Button(botones, text="Multiplicar por escalar (k·V1)", command=self._accion_escalar).pack(side="left", padx=5)
-        ttk.Button(botones, text="Limpiar", command=self._limpiar_operaciones).pack(side="right")
+        for columna in (0, 1):
+            botones.columnconfigure(columna, weight=1, uniform="operaciones_vector")
+        ttk.Button(
+            botones, text="Sumar (V1 + V2)", command=self._accion_suma,
+        ).grid(row=0, column=0, padx=3, pady=3, sticky="ew")
+        ttk.Button(
+            botones, text="Restar (V1 − V2)", command=self._accion_resta,
+        ).grid(row=0, column=1, padx=3, pady=3, sticky="ew")
+        ttk.Button(
+            botones, text="Multiplicar por escalar (k·V1)",
+            command=self._accion_escalar,
+        ).grid(row=1, column=0, padx=3, pady=3, sticky="ew")
+        ttk.Button(
+            botones, text="Limpiar", command=self._limpiar_operaciones,
+        ).grid(row=1, column=1, padx=3, pady=3, sticky="ew")
 
         botones_adicionales = ttk.Frame(marco)
         botones_adicionales.pack(fill="x", pady=(5, 0))
+        for columna in (0, 1):
+            botones_adicionales.columnconfigure(columna, weight=1, uniform="productos_vector")
         ttk.Button(
             botones_adicionales, text="Producto punto (V1·V2)",
             command=self._accion_producto_punto,
-        ).pack(side="left", padx=(0, 5))
+        ).grid(row=0, column=0, padx=3, pady=3, sticky="ew")
         ttk.Button(
             botones_adicionales, text="Producto cruz (V1×V2)",
             command=self._accion_producto_cruz,
-        ).pack(side="left", padx=5)
+        ).grid(row=0, column=1, padx=3, pady=3, sticky="ew")
         ttk.Button(
             botones_adicionales, text="Norma de V1",
             command=self._accion_norma,
-        ).pack(side="left", padx=5)
+        ).grid(row=1, column=0, columnspan=2, padx=3, pady=3, sticky="ew")
 
         ttk.Label(marco, text="Resultado y procedimiento:").pack(anchor="w", pady=(16, 4))
         marco_resultado, self.txt_resultado = crear_area_resultado(marco, alto=9)
@@ -224,7 +237,7 @@ class PestanaVectores(ttk.Frame):
         marco.grid(row=0, column=1, sticky="nsew", padx=(7, 0))
 
         ttk.Label(marco, text="Vectores generadores (uno por línea):").pack(anchor="w")
-        self.txt_generadores = tk.Text(marco, height=8)
+        self.txt_generadores = tk.Text(marco, width=44, height=8)
         self.txt_generadores.pack(fill="x", pady=(2, 8))
         self.txt_generadores.insert("1.0", "1 0\n0 1")
         AyudaEmergente(self.txt_generadores, "No es necesario conocer la dimensión: agrega tantos vectores como necesites.")
@@ -244,7 +257,9 @@ class PestanaVectores(ttk.Frame):
         ).pack(fill="x", pady=(2, 0))
 
         ttk.Label(marco, text="Resultado y procedimiento:").pack(anchor="w", pady=(10, 4))
-        marco_resultado, self.txt_resultado_combinacion = crear_area_resultado(marco, alto=11, fuente=("Segoe UI", 10))
+        marco_resultado, self.txt_resultado_combinacion = crear_area_resultado(
+            marco, alto=11, fuente=("TkFixedFont", 10),
+        )
         marco_resultado.pack(fill="both", expand=True)
 
     def _accion_combinacion_lineal(self):

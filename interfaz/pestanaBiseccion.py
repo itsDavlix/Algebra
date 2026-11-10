@@ -32,6 +32,16 @@ def _proporcion_x(x, a, b):
 def dibujar_grafica_biseccion(canvas, funcion, a, b, resultado=None):
     """Traza f(x), el cambio de signo inicial y el intervalo final de bisección."""
     canvas.delete("all")
+    oscuro = str(canvas.cget("background")) == "#111C2E"
+    color_texto = "#E5E7EB" if oscuro else TEXTO
+    color_suave = "#A8B3C5" if oscuro else TEXTO_SUAVE
+    color_verde = "#4ADE80" if oscuro else VERDE
+    color_rojo = "#F87171" if oscuro else ROJO
+    color_azul = "#C7B5FF" if oscuro else "#6946AD"
+    color_eje = "#9A86C7" if oscuro else "#8876A8"
+    color_rejilla = "#44516A" if oscuro else "#E2D9EF"
+    color_intervalo = "#143B2B" if oscuro else "#ECFDF3"
+    color_superficie = "#111C2E" if oscuro else "white"
     ancho = max(canvas.winfo_width(), 420)
     alto = max(canvas.winfo_height(), 210)
     # Define el área de trazado y deja márgenes para las etiquetas de los ejes.
@@ -59,7 +69,7 @@ def dibujar_grafica_biseccion(canvas, funcion, a, b, resultado=None):
     if not valores:
         canvas.create_text(
             ancho / 2, alto / 2, text="No se pudo representar f(x) en este intervalo.",
-            fill=TEXTO_SUAVE, width=ancho - 32,
+        fill=color_suave, width=ancho - 32,
         )
         return
 
@@ -86,7 +96,7 @@ def dibujar_grafica_biseccion(canvas, funcion, a, b, resultado=None):
     expresion = resultado.expresion if resultado is not None else "f(x)"
     canvas.create_text(
         izquierda, 10, anchor="w", text=f"f(x) = {expresion}",
-        fill=TEXTO, font=("Helvetica", 9, "bold"),
+        fill=color_texto, font=("Helvetica", 10, "bold"),
     )
     valores_extremos = None
     intervalo_final = None
@@ -114,7 +124,7 @@ def dibujar_grafica_biseccion(canvas, funcion, a, b, resultado=None):
             estado_extremos = f"Raíz exacta en el extremo {extremo}"
         canvas.create_text(
             derecha, 26, anchor="e", text=estado_extremos,
-            fill=VERDE, font=("Helvetica", 8, "bold"),
+            fill=color_verde, font=("Helvetica", 8, "bold"),
         )
 
     # Coloca una cuadrícula y etiquetas uniformes para orientar la lectura.
@@ -126,26 +136,26 @@ def dibujar_grafica_biseccion(canvas, funcion, a, b, resultado=None):
         py = arriba + proporcion * alto_trazo
         valor_y = y_valor * escala_y
         etiqueta_y = f"{valor_y:.3g}" if abs(valor_y) != float("inf") else f"{y_valor:.2g}×{escala_y:.1e}"
-        canvas.create_line(px, arriba, px, abajo, fill="#E8EDF4")
-        canvas.create_line(izquierda, py, derecha, py, fill="#E8EDF4")
-        canvas.create_text(px, abajo + 14, text=f"{x:.3g}", fill=TEXTO_SUAVE, font=("Helvetica", 8))
+        canvas.create_line(px, arriba, px, abajo, fill=color_rejilla, width=1)
+        canvas.create_line(izquierda, py, derecha, py, fill=color_rejilla, width=1)
+        canvas.create_text(px, abajo + 14, text=f"{x:.3g}", fill=color_suave, font=("Helvetica", 9))
         canvas.create_text(izquierda - 7, py, text=etiqueta_y,
-                           anchor="e", fill=TEXTO_SUAVE, font=("Helvetica", 8))
+                           anchor="e", fill=color_suave, font=("Helvetica", 9))
 
     # Resalta el último intervalo que todavía acota la raíz.
     if intervalo_final is not None and intervalo_final[0] < intervalo_final[1]:
         x_a, x_b = map(lambda x: coord_x(x), intervalo_final)
         canvas.create_rectangle(
-            x_a, arriba, x_b, abajo, fill="#ECFDF3", stipple="gray25",
+            x_a, arriba, x_b, abajo, fill=color_intervalo, stipple="gray25",
             outline="",
         )
         for x in (x_a, x_b):
-            canvas.create_line(x, arriba, x, abajo, fill=VERDE, dash=(2, 3), width=2)
+            canvas.create_line(x, arriba, x, abajo, fill=color_verde, dash=(2, 3), width=2)
 
     # Dibuja los ejes, la curva y la aproximación devuelta por bisección.
     cero_y = coord_y(0.0)
-    canvas.create_line(izquierda, cero_y, derecha, cero_y, fill=AZUL_BORDE, width=2)
-    canvas.create_line(izquierda, arriba, izquierda, abajo, fill=AZUL_BORDE)
+    canvas.create_line(izquierda, cero_y, derecha, cero_y, fill=color_eje, width=2)
+    canvas.create_line(izquierda, arriba, izquierda, abajo, fill=color_eje, width=2)
     anterior = None
     for x, y in zip(xs, ys):
         if y is None:
@@ -153,31 +163,31 @@ def dibujar_grafica_biseccion(canvas, funcion, a, b, resultado=None):
             continue
         punto = (coord_x(x), coord_y(y))
         if anterior is not None:
-            canvas.create_line(*anterior, *punto, fill=AZUL, width=2)
+            canvas.create_line(*anterior, *punto, fill=color_azul, width=3)
         anterior = punto
 
     if resultado is not None:
         x_raiz = coord_x(resultado.raiz)
         y_raiz = coord_y(resultado.valor_funcion)
-        canvas.create_line(x_raiz, arriba, x_raiz, abajo, fill=VERDE, dash=(4, 3))
-        canvas.create_oval(x_raiz - 4, y_raiz - 4, x_raiz + 4, y_raiz + 4,
-                           fill=VERDE, outline="white", width=1)
+        canvas.create_line(x_raiz, arriba, x_raiz, abajo, fill=color_verde, dash=(4, 3))
+        canvas.create_oval(x_raiz - 5, y_raiz - 5, x_raiz + 5, y_raiz + 5,
+                           fill=color_verde, outline=color_superficie, width=1)
         canvas.create_oval(x_raiz - 4, cero_y - 4, x_raiz + 4, cero_y + 4,
-                           fill="white", outline=VERDE, width=2)
+                           fill=color_superficie, outline=color_verde, width=2)
         if valores_extremos is not None:
             for x, y, nombre in ((a, valores_extremos[0], "a"), (b, valores_extremos[1], "b")):
                 px, py = coord_x(x), coord_y(y)
-                color = AZUL if y < 0 else ROJO
+                color = color_azul if y < 0 else color_rojo
                 canvas.create_oval(
-                    px - 3, py - 3, px + 3, py + 3, fill=color, outline="white",
+                    px - 3, py - 3, px + 3, py + 3, fill=color, outline=color_superficie,
                 )
                 canvas.create_text(
                     px, py - 10, text=nombre, fill=color,
-                    font=("Helvetica", 8, "bold"),
+                    font=("Helvetica", 9, "bold"),
                 )
         canvas.create_text(
             min(max(x_raiz, izquierda + 52), derecha - 52), arriba + 9,
-            text=f"raíz ≈ {resultado.raiz:.6g}", fill=VERDE,
+            text=f"raíz ≈ {resultado.raiz:.6g}", fill=color_verde,
             font=("Helvetica", 8, "bold"),
         )
 
@@ -188,12 +198,12 @@ def dibujar_grafica_biseccion(canvas, funcion, a, b, resultado=None):
             if puntos_fuera_dominio else
             "Requisito: f continua en [a,b]. La gráfica no puede certificar continuidad."
         ),
-        fill=TEXTO_SUAVE, font=("Helvetica", 8),
+        fill=color_suave, font=("Helvetica", 9),
     )
     canvas.create_text(
         izquierda, alto - 10, anchor="w",
         text="Curva: f(x)   Línea: f(x)=0   Puntos: extremos   Banda verde: intervalo final",
-        fill=TEXTO_SUAVE, font=("Helvetica", 8),
+        fill=color_suave, font=("Helvetica", 9),
     )
 
 
@@ -347,12 +357,12 @@ class PestanaBiseccion(ttk.Frame):
         )
         estilo_tabla.map(
             "Biseccion.Treeview",
-            background=[("selected", "#DBEAFE")],
+            background=[("selected", "#E8E1F5")],
             foreground=[("selected", TEXTO)],
         )
         estilo_tabla.configure(
             "Biseccion.Treeview.Heading",
-            background="#F1F5F9", foreground=TEXTO_SUAVE,
+            background="#F5F2FA", foreground=TEXTO_SUAVE,
             font=("TkDefaultFont", 10, "bold"), padding=(9, 10), relief="flat",
         )
         estilo_tabla.map(
@@ -361,21 +371,21 @@ class PestanaBiseccion(ttk.Frame):
         )
         estilo_tabla.configure(
             "Biseccion.Vertical.TScrollbar", width=9, arrowsize=0,
-            background="#CBD5E1", troughcolor="#F8FAFC", bordercolor="#F8FAFC",
+            background="#D8D1E7", troughcolor="#F8F7FB", bordercolor="#F8F7FB",
             relief="flat",
         )
         estilo_tabla.map(
             "Biseccion.Vertical.TScrollbar",
-            background=[("active", "#94A3B8")],
+            background=[("active", "#8A77BC")],
         )
         estilo_tabla.configure(
             "Biseccion.Horizontal.TScrollbar", width=9, arrowsize=0,
-            background="#CBD5E1", troughcolor="#F8FAFC", bordercolor="#F8FAFC",
+            background="#D8D1E7", troughcolor="#F8F7FB", bordercolor="#F8F7FB",
             relief="flat",
         )
         estilo_tabla.map(
             "Biseccion.Horizontal.TScrollbar",
-            background=[("active", "#94A3B8")],
+            background=[("active", "#8A77BC")],
         )
 
         tabla_marco = ttk.Frame(procedimiento)
@@ -389,7 +399,7 @@ class PestanaBiseccion(ttk.Frame):
             selectmode="browse", style="Biseccion.Treeview",
         )
         self.tabla_iteraciones.heading("#0", text="Iteración / detalle")
-        self.tabla_iteraciones.column("#0", width=175, minwidth=155, stretch=True)
+        self.tabla_iteraciones.column("#0", width=165, minwidth=140, stretch=True)
         encabezados = {
             "a": "a", "b": "b", "c": "Punto medio",
             "fc": "f(c)", "error": "Error (x)",
@@ -397,7 +407,7 @@ class PestanaBiseccion(ttk.Frame):
         for columna in columnas:
             self.tabla_iteraciones.heading(columna, text=encabezados[columna])
             self.tabla_iteraciones.column(
-                columna, width=112, minwidth=100, anchor="e", stretch=True,
+                columna, width=104, minwidth=86, anchor="e", stretch=True,
             )
         self.tabla_iteraciones.bind("<Configure>", self._ajustar_ancho_tabla)
         self.tabla_iteraciones.tag_configure("fila_par", background="#FFFFFF")
@@ -406,7 +416,7 @@ class PestanaBiseccion(ttk.Frame):
             "detalle", background="#F8FAFC", foreground=TEXTO_SUAVE,
         )
         self.tabla_iteraciones.tag_configure(
-            "decision", background="#EFF6FF", foreground=AZUL, font=("TkDefaultFont", 9, "bold"),
+            "decision", background="#F0ECF8", foreground=AZUL, font=("TkDefaultFont", 9, "bold"),
         )
         self.tabla_iteraciones.tag_configure(
             "parada_ok", background="#ECFDF3", foreground=VERDE,
@@ -508,12 +518,12 @@ class PestanaBiseccion(ttk.Frame):
         # Distribuye el ancho real para que los decimales no queden recortados.
         ancho = evento.width if evento is not None else self.tabla_iteraciones.winfo_width()
         disponible = max(ancho - 22, 0)
-        ancho_detalle = max(175, min(270, int(disponible * 0.26)))
-        ancho_numero = max(104, (disponible - ancho_detalle) // 5)
+        ancho_detalle = max(150, min(250, int(disponible * 0.26)))
+        ancho_numero = max(90, (disponible - ancho_detalle) // 5)
         self.tabla_iteraciones.column("#0", width=ancho_detalle)
         for columna in ("a", "b", "c", "fc", "error"):
             self.tabla_iteraciones.column(columna, width=ancho_numero)
-        requiere_desplazamiento = disponible < ancho_detalle + 5 * 104
+        requiere_desplazamiento = disponible < ancho_detalle + 5 * 90
         if requiere_desplazamiento and not self.barra_horizontal_tabla.winfo_ismapped():
             self.barra_horizontal_tabla.grid(row=1, column=0, sticky="ew")
             self.tabla_iteraciones.master.rowconfigure(1, weight=0)
@@ -576,10 +586,13 @@ class PestanaBiseccion(ttk.Frame):
     def _mostrar_mensaje_grafica(self):
         """Muestra una indicación centrada cuando aún no hay una gráfica disponible."""
         self.canvas_grafica.delete("all")
+        oscuro = str(self.canvas_grafica.cget("background")) == "#111C2E"
         self.canvas_grafica.create_text(
             max(self.canvas_grafica.winfo_width(), 420) / 2,
             max(self.canvas_grafica.winfo_height(), 210) / 2,
-            text=self.mensaje_grafica, fill=TEXTO_SUAVE, width=380,
+            text=self.mensaje_grafica,
+            fill="#A8B3C5" if oscuro else TEXTO_SUAVE,
+            width=380,
         )
 
     def _accion_resolver(self, _evento=None):
