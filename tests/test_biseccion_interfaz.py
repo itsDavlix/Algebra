@@ -27,15 +27,15 @@ class PruebasAccionesBiseccion(unittest.TestCase):
 
     @patch("interfaz.pestanaBiseccion.mostrar_error")
     @patch("interfaz.pestanaBiseccion.mostrar_texto")
-    def test_autoajuste_rellena_campos_y_explica_la_propuesta(self, mostrar, error):
+    def test_resolver_autoajusta_campos_y_calcula_raiz(self, mostrar, error):
         self.pestana.var_ecuacion.set("x^2 = 2")
-        self.pestana._accion_autoajustar()
+        self.pestana._accion_resolver()
 
         self.assertLess(float(self.pestana.var_a.get()), float(self.pestana.var_b.get()))
         self.assertGreater(float(self.pestana.var_tolerancia.get()), 0)
         self.assertGreater(int(self.pestana.var_iteraciones.get()), 0)
         salida = mostrar.call_args.args[1]
-        for texto in ("f(a)", "f(b)", "Tolerancia", "iteraciones", "continuidad"):
+        for texto in ("convergencia alcanzada", "Iteraciones", "tolerancia"):
             self.assertIn(texto, salida)
         error.assert_not_called()
 
@@ -75,11 +75,11 @@ class PruebasAccionesBiseccion(unittest.TestCase):
             detalles,
             [
                 "Punto medio: c = (a+b)/2",
-                "Evaluación: f(a) = -2",
-                "Evaluación: f(b) = 4",
-                "Evaluación: f(c) = -0.125",
+                "Evaluación: f(a) = -0.125",
+                "Evaluación: f(b) = 1.609375",
+                "Evaluación: f(c) = 0.6660156",
                 "Cota: max(c-a, b-c)",
-                "Decisión: conservar [c, b]",
+                "Decisión: conservar [a, c]",
             ],
         )
         self.assertIn("fila_par", raiz.kwargs["tags"])
@@ -118,14 +118,15 @@ class PruebasAccionesBiseccion(unittest.TestCase):
 
     @patch("interfaz.pestanaBiseccion.mostrar_error")
     @patch("interfaz.pestanaBiseccion.mostrar_texto")
-    def test_error_reemplaza_el_resultado_anterior(self, mostrar, error):
+    def test_error_de_autoajuste_reemplaza_el_resultado_anterior(self, mostrar, error):
         self.pestana._cargar_ejemplo()
-        for valor in ("", "1.5", "nan", "0", "1001", "²"):
-            with self.subTest(valor=valor):
-                self.pestana.var_iteraciones.set(valor)
+        for ecuacion in ("", "x^2 + 1", "ecuacion invalida"):
+            with self.subTest(ecuacion=ecuacion):
+                self.pestana.var_ecuacion.set(ecuacion)
                 self.pestana._accion_resolver()
                 self.assertIn("No se pudo resolver", mostrar.call_args.args[1])
-                self.assertIn("entero entre 1 y 1000", str(error.call_args.args[0]))
+                self.assertIsNone(self.pestana.resultado_biseccion)
+                error.assert_called()
 
     @patch("interfaz.pestanaBiseccion.mostrar_error")
     @patch("interfaz.pestanaBiseccion.mostrar_texto")

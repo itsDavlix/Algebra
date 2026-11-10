@@ -4,8 +4,7 @@ from tkinter import ttk
 
 from interfaz.ayudas import mostrar_error, mostrar_texto
 from interfaz.pestanaBiseccion import PestanaBiseccion, _numero_tabla
-from nucleo.biseccion import MAX_ITERACIONES, autoajustar_biseccion, preparar_funcion
-from nucleo.numeros import convertir_numero
+from nucleo.biseccion import autoajustar_biseccion, preparar_funcion
 from nucleo.reglafalsa import (
     nota_estancamiento, resolver_reglafalsa,
 )
@@ -33,19 +32,12 @@ class PestanaReglaFalsa(PestanaBiseccion):
         self._cargar_ejemplo()
 
     def _accion_resolver(self, _evento=None):
-        """Valida las entradas, ejecuta Regula Falsi y actualiza sus vistas."""
+        """Autoajusta los parámetros, resuelve y actualiza sus vistas."""
         try:
-            a = convertir_numero(self.var_a.get(), "El extremo a")
-            b = convertir_numero(self.var_b.get(), "El extremo b")
-            tolerancia = convertir_numero(self.var_tolerancia.get(), "La tolerancia")
-            texto_iteraciones = self.var_iteraciones.get().strip()
-            if (not texto_iteraciones.isascii() or not texto_iteraciones.isdecimal()
-                    or len(texto_iteraciones) > 4):
-                raise ValueError(
-                    f"El máximo de iteraciones debe ser un entero entre 1 y {MAX_ITERACIONES}."
-                )
+            ajuste = autoajustar_biseccion(self.var_ecuacion.get())
+            self._aplicar_autoajuste(ajuste)
             resultado = resolver_reglafalsa(
-                self.var_ecuacion.get(), a, b, tolerancia, int(texto_iteraciones),
+                self.var_ecuacion.get(), ajuste.a, ajuste.b, ajuste.tolerancia, 100,
             )
             mostrar_texto(self.txt_resultado, self._resumen_regla_falsa(resultado))
             self.resultado_biseccion = resultado
@@ -151,43 +143,10 @@ class PestanaReglaFalsa(PestanaBiseccion):
                 tags=(estilo_decision,),
             )
 
-    def _accion_autoajustar(self):
-        """Propone un intervalo con cambio de signo y fija un límite conservador."""
-        try:
-            ajuste = autoajustar_biseccion(self.var_ecuacion.get())
-        except ValueError as error:
-            mostrar_texto(self.txt_resultado, "No se pudo autoajustar.\n\n" + str(error))
-            mostrar_error(error)
-            return
-
-        self.var_a.set(f"{ajuste.a:.12g}")
-        self.var_b.set(f"{ajuste.b:.12g}")
-        self.var_tolerancia.set(f"{ajuste.tolerancia:.12g}")
+    def _aplicar_autoajuste(self, ajuste):
+        """Muestra el intervalo y los parámetros usados por Regula Falsi."""
+        super()._aplicar_autoajuste(ajuste)
         self.var_iteraciones.set("100")
-        self.resultado_biseccion = None
-        self.funcion_grafica = None
-        self._actualizar_tabla_iteraciones_vacia()
-        self.mensaje_grafica = "Revisa la continuidad y pulsa «Resolver por Regula Falsi»."
-        self._redibujar_grafica()
-        condicion = (
-            "hay una raíz en un extremo"
-            if ajuste.fa == 0 or ajuste.fb == 0 else
-            "los valores tienen signos opuestos"
-        )
-        mostrar_texto(
-            self.txt_resultado,
-            "Autoajustar no calcula la raíz: muestrea f(x) en intervalos "
-            "crecientes y propone puntos con cambio de signo.\n"
-            f"Intervalo propuesto [{ajuste.a:.7g}, {ajuste.b:.7g}]: "
-            f"f(a) = {ajuste.fa:.7g} y f(b) = {ajuste.fb:.7g}; {condicion}.\n"
-            "Límites: puede pasar por alto raíces sin cambio de signo; el "
-            "cambio de signo no demuestra continuidad ni descarta polos.\n"
-            f"Tolerancia {ajuste.tolerancia:.7g}: se propone como diferencia "
-            "entre aproximaciones consecutivas; no es una cota del error real en x.\n"
-            "Máximo 100 iteraciones: Regula Falsi no tiene un número de pasos "
-            "predecible y puede estancarse en un extremo.\n"
-            "Revisa la continuidad en todo [a, b] antes de resolver.",
-        )
 
     def _cargar_ejemplo(self):
         """Carga el ejemplo conocido de la raíz de x^3 - x - 2."""

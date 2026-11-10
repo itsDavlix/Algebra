@@ -188,8 +188,8 @@ def autoajustar_biseccion(ecuacion):
 
     raise ValueError(
         "No se encontró un intervalo con cambio de signo entre -1 048 576 y 1 048 576. "
-        "Puede no haber una raíz detectable por este muestreo. Escribe a y b manualmente "
-        "y comprueba que f sea continua en todo el intervalo."
+        "Puede no haber una raíz detectable por este muestreo. "
+        "Comprueba la ecuación y que f sea continua en el intervalo."
     )
 
 

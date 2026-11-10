@@ -160,16 +160,17 @@ class PruebasInterfazReglaFalsa(unittest.TestCase):
         resumen = mostrar.call_args.args[1]
         self.assertAlmostEqual(self.pestana.resultado_biseccion.raiz, 1.52138, places=5)
         self.assertIn("AVISO:", resumen)
-        self.assertEqual(self.pestana.tabla_iteraciones.insert.call_count, 12 * 8)
+        self.assertEqual(self.pestana.tabla_iteraciones.insert.call_count,
+                         len(self.pestana.resultado_biseccion.iteraciones) * 8)
         textos = [
             llamada.kwargs.get("text", "")
             for llamada in self.pestana.tabla_iteraciones.insert.call_args_list
         ]
-        self.assertIn("Decisión: f(c)·f(b) < 0 → a = c", textos)
+        self.assertTrue(any(texto.startswith("Decisión:") for texto in textos))
         self.assertTrue(any(texto.startswith("Parada:") for texto in textos))
         error.assert_not_called()
 
-        self.pestana.var_iteraciones.set("2.5")
+        self.pestana.var_ecuacion.set("x^2 + 1")
         self.pestana._accion_resolver()
         self.assertIsNone(self.pestana.resultado_biseccion)
         self.pestana._mostrar_mensaje_grafica.assert_called_once()
@@ -177,16 +178,13 @@ class PruebasInterfazReglaFalsa(unittest.TestCase):
 
     @patch("interfaz.pestanaReglaFalsa.mostrar_error")
     @patch("interfaz.pestanaReglaFalsa.mostrar_texto")
-    def test_autoajustar_usa_cien_iteraciones_y_explica_estimacion(self, mostrar, error):
+    def test_resolver_autoajusta_y_usa_cien_iteraciones(self, mostrar, error):
         self.pestana.var_ecuacion.set("x^2 = 2")
-        self.pestana._accion_autoajustar()
+        self.pestana._accion_resolver()
         self.assertEqual(self.pestana.var_iteraciones.get(), "100")
         texto = mostrar.call_args.args[1]
-        self.assertIn("no calcula la raíz", texto)
-        self.assertIn("raíces sin cambio de signo", texto)
-        self.assertIn("no demuestra continuidad ni descarta polos", texto)
-        self.assertIn("no es una cota", texto)
-        self.assertIn("no tiene un número de pasos predecible", texto)
+        self.assertIn("convergencia alcanzada", texto)
+        self.assertAlmostEqual(self.pestana.resultado_biseccion.raiz, math.sqrt(2), places=5)
         error.assert_not_called()
 
 

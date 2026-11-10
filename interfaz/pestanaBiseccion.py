@@ -10,7 +10,6 @@ from interfaz.estilos import (
 from nucleo.biseccion import (
     MAX_ITERACIONES, autoajustar_biseccion, preparar_funcion, resolver_biseccion,
 )
-from nucleo.numeros import convertir_numero
 
 
 def _interpolar_x(a, b, proporcion):
@@ -260,6 +259,8 @@ class PestanaBiseccion(ttk.Frame):
             style="Ayuda.TLabel", justify="left", wraplength=320,
         ).pack(anchor="w", pady=(0, 12))
 
+        ttk.Label(marco, text="Valores calculados automáticamente al resolver:",
+                  style="Ayuda.TLabel").pack(anchor="w")
         # Organiza los parámetros en dos columnas para mantener el panel compacto.
         datos = ttk.Frame(marco)
         datos.pack(fill="x")
@@ -274,13 +275,10 @@ class PestanaBiseccion(ttk.Frame):
             fila, columna = (indice // 2) * 2, indice % 2
             margen = (0, 6) if columna == 0 else (6, 0)
             ttk.Label(datos, text=etiqueta).grid(row=fila, column=columna, sticky="w", padx=margen)
-            entrada = ttk.Entry(datos, textvariable=variable, width=13)
+            entrada = ttk.Entry(datos, textvariable=variable, width=13, state="readonly")
             entrada.grid(row=fila + 1, column=columna, sticky="ew", padx=margen, pady=(3, 10))
-            entrada.bind("<Return>", self._accion_resolver)
 
-        # Agrupa la acción principal y los controles para cargar o borrar datos.
-        ttk.Button(marco, text="Autoajustar parámetros", command=self._accion_autoajustar).pack(
-            fill="x", pady=(2, 6))
+        # Resolver propone los parámetros y calcula la raíz en una sola acción.
         ttk.Button(marco, text="Resolver por bisección", style="Accion.TButton",
                    command=self._accion_resolver).pack(fill="x", pady=(4, 6))
         botones = ttk.Frame(marco)
@@ -596,19 +594,13 @@ class PestanaBiseccion(ttk.Frame):
         )
 
     def _accion_resolver(self, _evento=None):
-        """Valida las entradas, ejecuta bisección y actualiza las tres vistas."""
+        """Autoajusta los parámetros, resuelve y actualiza las tres vistas."""
         try:
-            # Valida los campos antes de ejecutar el método y actualizar la vista.
-            a = convertir_numero(self.var_a.get(), "El extremo a")
-            b = convertir_numero(self.var_b.get(), "El extremo b")
-            tolerancia = convertir_numero(self.var_tolerancia.get(), "La tolerancia")
-            texto_iteraciones = self.var_iteraciones.get().strip()
-            # Evita aceptar decimales, signos o caracteres unicode en el contador.
-            if (not texto_iteraciones.isascii() or not texto_iteraciones.isdecimal()
-                    or len(texto_iteraciones) > 4):
-                raise ValueError(f"El máximo de iteraciones debe ser un entero entre 1 y {MAX_ITERACIONES}.")
+            ajuste = autoajustar_biseccion(self.var_ecuacion.get())
+            self._aplicar_autoajuste(ajuste)
             resultado = resolver_biseccion(
-                self.var_ecuacion.get(), a, b, tolerancia, int(texto_iteraciones),
+                self.var_ecuacion.get(), ajuste.a, ajuste.b,
+                ajuste.tolerancia, ajuste.max_iteraciones,
             )
             # Sincroniza el resumen, la tabla desplegable y la gráfica con el resultado.
             mostrar_texto(self.txt_resultado, _resumen_resultado(resultado))
@@ -625,40 +617,12 @@ class PestanaBiseccion(ttk.Frame):
             self._mostrar_mensaje_grafica()
             mostrar_error(error)
 
-    def _accion_autoajustar(self):
-        """Propone parámetros a partir de la ecuación y explica cada elección."""
-        try:
-            ajuste = autoajustar_biseccion(self.var_ecuacion.get())
-        except ValueError as error:
-            mostrar_texto(self.txt_resultado, "No se pudo autoajustar.\n\n" + str(error))
-            mostrar_error(error)
-            return
-
+    def _aplicar_autoajuste(self, ajuste):
+        """Refleja en los campos los parámetros usados para resolver."""
         self.var_a.set(f"{ajuste.a:.12g}")
         self.var_b.set(f"{ajuste.b:.12g}")
         self.var_tolerancia.set(f"{ajuste.tolerancia:.12g}")
         self.var_iteraciones.set(str(ajuste.max_iteraciones))
-        self.resultado_biseccion = None
-        self.funcion_grafica = None
-        self._actualizar_tabla_iteraciones_vacia()
-        self.mensaje_grafica = "Revisa la continuidad y pulsa «Resolver por bisección»."
-        self._redibujar_grafica()
-
-        condicion = (
-            "hay una raíz en un extremo"
-            if ajuste.fa == 0 or ajuste.fb == 0 else
-            "los valores tienen signos opuestos"
-        )
-        mostrar_texto(
-            self.txt_resultado,
-            f"Intervalo [{ajuste.a:.7g}, {ajuste.b:.7g}]: "
-            f"f(a) = {ajuste.fa:.7g} y f(b) = {ajuste.fb:.7g}; {condicion}.\n"
-            f"Tolerancia {ajuste.tolerancia:.7g}: equivale a una millonésima "
-            "del ancho inicial (mínimo 1e-12). Es la cota deseada del error en x.\n"
-            f"Máximo {ajuste.max_iteraciones} iteraciones: al partir el intervalo "
-            "por la mitad, bastan para alcanzar esa cota, con una de margen.\n"
-            "Revisa la continuidad en todo [a, b] antes de resolver.",
-        )
 
     def _redibujar_grafica(self, _evento=None):
         """Refresca la gráfica al terminar el cálculo o cambiar el tamaño del lienzo."""
