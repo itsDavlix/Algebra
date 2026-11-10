@@ -29,6 +29,7 @@ if __package__ is None or __package__ == "":
         sys.path.insert(0, project_root)
 
 from interfaz.estilos import actualizar_widgets, configurar_estilo
+from interfaz.barraMatematica import BarraMatematica
 from interfaz.pestanaInicio import PestanaInicio
 from interfaz.pestanaVectores import PestanaVectores
 from interfaz.pestanaMatrices import PestanaMatrices
@@ -72,6 +73,13 @@ class CalculadoraAlgebraLineal(tk.Tk):
             encabezado, text="Activar modo oscuro", command=self._alternar_tema,
         )
         self.boton_tema.pack(side="right", anchor="e")
+        self.barra_matematica = BarraMatematica(self)
+        self.boton_simbolos = ttk.Button(
+            encabezado, text="Mostrar símbolos", takefocus=False,
+            command=self._alternar_simbolos,
+        )
+        self.boton_simbolos.pack(side="right", anchor="e", padx=(0, 8))
+        self.barra_matematica.al_cerrar = self._actualizar_boton_simbolos
         ttk.Label(
             contenedor,
             text="Herramientas de álgebra lineal, sistemas y raíces de ecuaciones.",
@@ -90,6 +98,15 @@ class CalculadoraAlgebraLineal(tk.Tk):
         notebook.add(PestanaReglaFalsa(notebook), text="Regula Falsi")
         notebook.add(PestanaRomanos(notebook), text="Números romanos")
         notebook.add(PestanaProgramaAnterior(notebook), text="Programa anterior")
+
+    def _alternar_simbolos(self):
+        self.barra_matematica.alternar()
+        self._actualizar_boton_simbolos()
+
+    def _actualizar_boton_simbolos(self):
+        self.boton_simbolos.configure(
+            text="Ocultar símbolos" if self.barra_matematica.visible else "Mostrar símbolos",
+        )
 
     def _alternar_tema(self):
         """Cambia la paleta de toda la aplicación y actualiza las gráficas."""

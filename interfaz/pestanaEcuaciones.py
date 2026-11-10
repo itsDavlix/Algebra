@@ -35,12 +35,14 @@ class PestanaEcuaciones(ttk.Frame):
 
         ttk.Label(marco, text="Matriz A:").pack(anchor="w")
         self.txt_a = tk.Text(marco, width=38, height=5)
+        self.txt_a.entrada_lista = True
         self.txt_a.pack(fill="x", pady=(2, 8))
         self.txt_a.insert("1.0", "2 1\n1 -1")
         AyudaEmergente(self.txt_a, "Matriz de coeficientes del sistema.")
 
         ttk.Label(marco, text="Matriz B:").pack(anchor="w")
         self.txt_b = tk.Text(marco, width=38, height=5)
+        self.txt_b.entrada_lista = True
         self.txt_b.pack(fill="x", pady=(2, 8))
         self.txt_b.insert("1.0", "5\n1")
 
@@ -48,6 +50,7 @@ class PestanaEcuaciones(ttk.Frame):
 
         ttk.Label(marco, text="Para comprobar una X concreta, escríbela aquí:").pack(anchor="w", pady=(12, 0))
         self.txt_x = tk.Text(marco, width=38, height=5)
+        self.txt_x.entrada_lista = True
         self.txt_x.pack(fill="x", pady=(2, 8))
         self.txt_x.insert("1.0", "2\n1")
 

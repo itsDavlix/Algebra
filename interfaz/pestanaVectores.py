@@ -36,12 +36,14 @@ class PestanaVectores(ttk.Frame):
 
         ttk.Label(marco, text="Primer vector (V1):").pack(anchor="w")
         self.ent_v1 = ttk.Entry(marco)
+        self.ent_v1.entrada_lista = True
         self.ent_v1.pack(fill="x", pady=(2, 8))
         self.ent_v1.insert(0, "1, 2, 3")
         AyudaEmergente(self.ent_v1, "Separa los valores con comas o espacios. Ejemplo: 1, 2, 3")
 
         ttk.Label(marco, text="Segundo vector (V2):").pack(anchor="w")
         self.ent_v2 = ttk.Entry(marco)
+        self.ent_v2.entrada_lista = True
         self.ent_v2.pack(fill="x", pady=(2, 8))
         self.ent_v2.insert(0, "4, 5, 6")
         AyudaEmergente(self.ent_v2, "Debe tener la misma cantidad de componentes que V1.")
@@ -238,12 +240,14 @@ class PestanaVectores(ttk.Frame):
 
         ttk.Label(marco, text="Vectores generadores (uno por línea):").pack(anchor="w")
         self.txt_generadores = tk.Text(marco, width=44, height=8)
+        self.txt_generadores.entrada_lista = True
         self.txt_generadores.pack(fill="x", pady=(2, 8))
         self.txt_generadores.insert("1.0", "1 0\n0 1")
         AyudaEmergente(self.txt_generadores, "No es necesario conocer la dimensión: agrega tantos vectores como necesites.")
 
         ttk.Label(marco, text="Vector a comprobar:").pack(anchor="w")
         self.ent_objetivo = ttk.Entry(marco)
+        self.ent_objetivo.entrada_lista = True
         self.ent_objetivo.pack(fill="x", pady=(2, 8))
         self.ent_objetivo.insert(0, "3, 5")
 

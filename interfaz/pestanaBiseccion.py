@@ -252,6 +252,7 @@ class PestanaBiseccion(ttk.Frame):
         # La expresión acepta una igualdad o una función escrita igualada a cero.
         ttk.Label(marco, text="Ecuación o expresión f(x):").pack(anchor="w")
         self.entrada_ecuacion = ttk.Entry(marco, textvariable=self.var_ecuacion, width=34)
+        self.entrada_ecuacion.entrada_matematica = True
         self.entrada_ecuacion.pack(fill="x", pady=(3, 5))
         self.entrada_ecuacion.bind("<Return>", self._accion_resolver)
         ttk.Label(
@@ -295,7 +296,8 @@ class PestanaBiseccion(ttk.Frame):
         ttk.Label(
             marco, text="Usa * para multiplicar, ^ o ** para potencias y punto decimal. "
             "Funciones: sin/sen, cos, tan, sqrt/raiz, exp, log/ln (natural), log10 y abs. "
-            "Constantes: pi y e. Ángulos en radianes.\n"
+            "Constantes: pi y e. Ángulos en radianes. "
+            "Por tramos: si(x < 0, -x, x).\n"
             f"Tolerancia > 0; máximo entre 1 y {MAX_ITERACIONES} iteraciones.",
             style="Ayuda.TLabel", justify="left", wraplength=320,
         ).pack(anchor="w")

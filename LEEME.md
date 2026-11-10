@@ -2,6 +2,10 @@
 
 Ejecuta `python main.py` con Python 3 y Tkinter disponible. No se agregaron dependencias externas.
 
+Pulsa **Mostrar símbolos**, junto al botón de modo oscuro, para abrir una paleta flotante que puedes mover. Selecciona un campo de datos y pulsa sus botones para escribir en el cursor. En Bisección y Regula Falsi están disponibles seno, coseno, tangente, raíz, valor absoluto, logaritmos, exponencial, potencias, paréntesis y constantes. Los símbolos se escriben con la sintaxis del evaluador (`sqrt(...)`, `**`, `pi`, etc.); las funciones envuelven el texto seleccionado y se añade `*` entre factores cuando corresponde. En otros campos se habilitan números y los separadores admitidos. Puedes cerrar la paleta con **Cerrar**, la X, Escape o **Ocultar símbolos**.
+
+Los botones `<`, `>`, `≤`, `≥`, `==` y `≠` permiten construir condiciones dentro de **si(…)**: `si(x < 0, -x, x)` equivale al valor absoluto. Su formato es `si(condición, valor si se cumple, valor en otro caso)`. También se admite una igualdad como `si(x <= 0, -x, x) = 2`. Se evalúa únicamente el tramo elegido. Estos métodos siguen buscando raíces de funciones continuas: no resuelven inecuaciones completas como `x^2 > 4`; comprueba la continuidad al definir los tramos.
+
 En la pestaña Matrices, ingresa cada elemento de A y B en su propia casilla y ajusta el número de filas y columnas con los controles. Así no necesitas separar valores con espacios. Si una casilla está vacía o tiene un valor inválido, el programa indica su posición. Para calcular un determinante, ingresa una matriz cuadrada en A y pulsa **Determinante de A**. La ventana muestra la recomendación de eficiencia antes de elegir **Cofactores** o **LU con pivoteo parcial**. Marca una opción y pulsa **Calcular**. No hace falta completar B.
 
 ## Organización del código

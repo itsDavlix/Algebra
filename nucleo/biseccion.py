@@ -3,6 +3,7 @@
 import ast
 import math
 import operator
+import re
 from dataclasses import dataclass
 
 from nucleo.numeros import asegurar_finito
@@ -19,6 +20,11 @@ _OPERACIONES = {
     ast.Add: operator.add, ast.Sub: operator.sub, ast.Mult: operator.mul,
     ast.Div: operator.truediv, ast.Pow: math.pow,
 }
+_COMPARACIONES = {
+    ast.Lt: operator.lt, ast.Gt: operator.gt,
+    ast.LtE: operator.le, ast.GtE: operator.ge,
+    ast.Eq: operator.eq, ast.NotEq: operator.ne,
+}
 
 
 def preparar_funcion(ecuacion):
@@ -33,8 +39,10 @@ def preparar_funcion(ecuacion):
     if len(texto) > 500:
         raise ValueError("La ecuación es demasiado larga (máximo 500 caracteres).")
     texto = (texto.replace("^", "**").replace("×", "*").replace("÷", "/")
-             .replace("−", "-").replace("π", "pi"))
-    partes = texto.split("=")
+             .replace("−", "-").replace("π", "pi")
+             .replace("≤", "<=").replace("≥", ">=").replace("≠", "!="))
+    # Una igualdad de ecuación es distinta de <=, >=, == y != en si(...).
+    partes = re.split(r"(?<![<>=!])=(?!=)", texto)
     if len(partes) > 2 or any(not parte.strip() for parte in partes):
         raise ValueError("Usa una sola igualdad, por ejemplo x^2 = 2.")
     try:
@@ -68,12 +76,28 @@ def preparar_funcion(ecuacion):
         elif isinstance(nodo, ast.UnaryOp) and isinstance(nodo.op, (ast.UAdd, ast.USub)):
             validar(nodo.operand, profundidad + 1)
         elif (isinstance(nodo, ast.Call) and isinstance(nodo.func, ast.Name)
+              and nodo.func.id == "si" and len(nodo.args) == 3 and not nodo.keywords):
+            condicion, verdadero, falso = nodo.args
+            if not isinstance(condicion, ast.Compare) or not all(
+                type(op) in _COMPARACIONES for op in condicion.ops
+            ):
+                raise ValueError("Usa si(condición, valor si se cumple, valor si no), por ejemplo si(x < 0, -x, x).")
+            for termino in (condicion.left, *condicion.comparators):
+                validar(termino, profundidad + 1)
+            validar(verdadero, profundidad + 1)
+            validar(falso, profundidad + 1)
+        elif isinstance(nodo, ast.Compare):
+            raise ValueError(
+                "Usa <, >, <=, >=, == o != dentro de si(condición, valor, otro valor). "
+                "Bisección y Regula Falsi buscan raíces; no resuelven inecuaciones."
+            )
+        elif (isinstance(nodo, ast.Call) and isinstance(nodo.func, ast.Name)
               and nodo.func.id in _FUNCIONES and len(nodo.args) == 1 and not nodo.keywords):
             validar(nodo.args[0], profundidad + 1)
         else:
             raise ValueError(
                 "Usa solo números, x, pi, e, +, -, *, /, ^ y funciones permitidas: "
-                + ", ".join(_FUNCIONES) + "."
+                + ", ".join(_FUNCIONES) + ", si(condición, valor, otro valor)."
             )
 
     validar(arbol.body)
@@ -89,7 +113,19 @@ def preparar_funcion(ecuacion):
             valor = evaluar(nodo.operand, x)
             if isinstance(nodo.op, ast.USub):
                 valor = -valor
-        else:  # Las llamadas ya fueron validadas; todas tienen un solo argumento.
+        elif isinstance(nodo, ast.Call) and nodo.func.id == "si":
+            condicion, verdadero, falso = nodo.args
+            izquierda = evaluar(condicion.left, x)
+            cumple = True
+            for operacion, termino in zip(condicion.ops, condicion.comparators):
+                derecha = evaluar(termino, x)
+                if not _COMPARACIONES[type(operacion)](izquierda, derecha):
+                    cumple = False
+                    break
+                izquierda = derecha
+            # No evalúa la rama descartada: puede estar fuera de su dominio.
+            valor = evaluar(verdadero if cumple else falso, x)
+        else:  # Las demás llamadas validadas tienen un solo argumento.
             valor = _FUNCIONES[nodo.func.id](evaluar(nodo.args[0], x))
         return asegurar_finito(valor, "El valor de la función")
 
