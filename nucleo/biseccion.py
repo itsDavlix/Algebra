@@ -12,6 +12,7 @@ from nucleo.numeros import asegurar_finito
 MAX_ITERACIONES = 1000
 _FUNCIONES = {
     "sin": math.sin, "sen": math.sin, "cos": math.cos, "tan": math.tan,
+    "acos": math.acos, "arccos": math.acos,
     "sqrt": math.sqrt, "raiz": math.sqrt, "exp": math.exp,
     "log": math.log, "ln": math.log, "log10": math.log10, "abs": abs,
 }

@@ -1,5 +1,6 @@
 """Pestaña para resolver una ecuación de una variable por bisección."""
 
+import math
 import tkinter as tk
 from tkinter import ttk
 
@@ -28,7 +29,19 @@ def _proporcion_x(x, a, b):
     return (x - a) / diferencia
 
 
-def dibujar_grafica_biseccion(canvas, funcion, a, b, resultado=None):
+def _intervalo_zoom(a, b, raiz, nivel):
+    """Escala el intervalo alrededor de la raíz sin cambiar el intervalo calculado."""
+    if nivel == 0:
+        return a, b
+    factor = 1.5 ** (-nivel)
+    izquierda = a * factor + raiz * (1 - factor)
+    derecha = b * factor + raiz * (1 - factor)
+    if not (math.isfinite(izquierda) and math.isfinite(derecha) and izquierda < derecha):
+        return None
+    return izquierda, derecha
+
+
+def dibujar_grafica_biseccion(canvas, funcion, a, b, resultado=None, intervalo_vista=None):
     """Traza f(x), el cambio de signo inicial y el intervalo final de bisección."""
     canvas.delete("all")
     oscuro = str(canvas.cget("background")) == "#111C2E"
@@ -46,6 +59,7 @@ def dibujar_grafica_biseccion(canvas, funcion, a, b, resultado=None):
     # Define el área de trazado y deja márgenes para las etiquetas de los ejes.
     izquierda, derecha, arriba, abajo = 56, ancho - 16, 40, alto - 54
     ancho_trazo, alto_trazo = derecha - izquierda, abajo - arriba
+    vista_a, vista_b = intervalo_vista if intervalo_vista is not None else (a, b)
 
     # Muestrea el intervalo; los puntos fuera del dominio separan los trazos.
     xs = []
@@ -53,7 +67,7 @@ def dibujar_grafica_biseccion(canvas, funcion, a, b, resultado=None):
     puntos_fuera_dominio = 0
     cantidad = max(120, min(500, int(ancho_trazo * 1.25)))
     for indice in range(cantidad + 1):
-        x = _interpolar_x(a, b, indice / cantidad)
+        x = _interpolar_x(vista_a, vista_b, indice / cantidad)
         try:
             y = funcion(x)
         except ValueError:
@@ -89,8 +103,8 @@ def dibujar_grafica_biseccion(canvas, funcion, a, b, resultado=None):
         return abajo - min(max(proporcion_y, 0.0), 1.0) * alto_trazo
 
     def coord_x(x):
-        """Transforma valores x usando la escala del intervalo original."""
-        return izquierda + _proporcion_x(x, a, b) * ancho_trazo
+        """Transforma valores x usando la escala visible."""
+        return izquierda + _proporcion_x(x, vista_a, vista_b) * ancho_trazo
 
     expresion = resultado.expresion if resultado is not None else "f(x)"
     canvas.create_text(
@@ -129,7 +143,7 @@ def dibujar_grafica_biseccion(canvas, funcion, a, b, resultado=None):
     # Coloca una cuadrícula y etiquetas uniformes para orientar la lectura.
     for indice in range(5):
         proporcion = indice / 4
-        x = _interpolar_x(a, b, proporcion)
+        x = _interpolar_x(vista_a, vista_b, proporcion)
         y_valor = maximo + (minimo - maximo) * proporcion
         px = izquierda + proporcion * ancho_trazo
         py = arriba + proporcion * alto_trazo
@@ -142,6 +156,8 @@ def dibujar_grafica_biseccion(canvas, funcion, a, b, resultado=None):
                            anchor="e", fill=color_suave, font=("Helvetica", 9))
 
     # Resalta el último intervalo que todavía acota la raíz.
+    if intervalo_final is not None:
+        intervalo_final = max(intervalo_final[0], vista_a), min(intervalo_final[1], vista_b)
     if intervalo_final is not None and intervalo_final[0] < intervalo_final[1]:
         x_a, x_b = map(lambda x: coord_x(x), intervalo_final)
         canvas.create_rectangle(
@@ -175,6 +191,8 @@ def dibujar_grafica_biseccion(canvas, funcion, a, b, resultado=None):
                            fill=color_superficie, outline=color_verde, width=2)
         if valores_extremos is not None:
             for x, y, nombre in ((a, valores_extremos[0], "a"), (b, valores_extremos[1], "b")):
+                if not vista_a <= x <= vista_b:
+                    continue
                 px, py = coord_x(x), coord_y(y)
                 color = color_azul if y < 0 else color_rojo
                 canvas.create_oval(
@@ -193,7 +211,7 @@ def dibujar_grafica_biseccion(canvas, funcion, a, b, resultado=None):
     canvas.create_text(
         izquierda, alto - 27, anchor="w",
         text=(
-            f"Dominio: {puntos_fuera_dominio} muestras no evaluables; revisa continuidad en [a,b]."
+            f"Dominio: {puntos_fuera_dominio} muestras no evaluables en la vista; revisa continuidad en [a,b]."
             if puntos_fuera_dominio else
             "Requisito: f continua en [a,b]. La gráfica no puede certificar continuidad."
         ),
@@ -235,6 +253,9 @@ class PestanaBiseccion(ttk.Frame):
         self.columnconfigure(1, weight=3, minsize=350)
         self.rowconfigure(0, weight=1)
         self.iteraciones_expandidas = False
+        self.grafica_expandida = False
+        self.nivel_zoom = 0
+        self._resultado_zoom = None
         self.var_ecuacion = tk.StringVar(self)
         self.var_a = tk.StringVar(self)
         self.var_b = tk.StringVar(self)
@@ -295,7 +316,7 @@ class PestanaBiseccion(ttk.Frame):
         ).pack(anchor="w", pady=(14, 8))
         ttk.Label(
             marco, text="Usa * para multiplicar, ^ o ** para potencias y punto decimal. "
-            "Funciones: sin/sen, cos, tan, sqrt/raiz, exp, log/ln (natural), log10 y abs. "
+            "Funciones: sin/sen, cos, acos/arccos (coseno inverso), tan, sqrt/raiz, exp, log/ln (natural), log10 y abs. "
             "Constantes: pi y e. Ángulos en radianes. "
             "Por tramos: si(x < 0, -x, x).\n"
             f"Tolerancia > 0; máximo entre 1 y {MAX_ITERACIONES} iteraciones.",
@@ -311,16 +332,45 @@ class PestanaBiseccion(ttk.Frame):
         self.marco_resultado = marco
         marco.columnconfigure(0, weight=1)
         marco.rowconfigure(1, weight=1)
+        self.barra_grafica = ttk.Frame(marco)
+        self.barra_grafica.grid(row=0, column=0, sticky="ew", pady=(0, 4))
+        self.barra_grafica.columnconfigure(0, weight=1)
         self.etiqueta_grafica = ttk.Label(
-            marco, text="Gráfica de la función e intersección con el eje x",
+            self.barra_grafica, text="Gráfica de la función e intersección con el eje x",
             style="Negrita.TLabel",
+            wraplength=300,
         )
-        self.etiqueta_grafica.grid(row=0, column=0, sticky="w", pady=(0, 4))
+        self.etiqueta_grafica.grid(row=0, column=0, sticky="w")
+        self.boton_expandir_grafica = ttk.Button(
+            self.barra_grafica, text="Expandir gráfica", command=self._alternar_vista_grafica,
+        )
+        self.boton_expandir_grafica.grid(row=0, column=1, sticky="e", padx=(8, 0))
+        self.controles_zoom = ttk.Frame(self.barra_grafica)
+        self.controles_zoom.grid(row=1, column=0, columnspan=2, sticky="w", pady=(6, 0))
+        self.boton_acercar = ttk.Button(
+            self.controles_zoom, text="+ Acercar", command=lambda: self._cambiar_zoom(1),
+        )
+        self.boton_acercar.pack(side="left")
+        self.boton_alejar = ttk.Button(
+            self.controles_zoom, text="− Alejar", command=lambda: self._cambiar_zoom(-1),
+        )
+        self.boton_alejar.pack(side="left", padx=6)
+        self.boton_restablecer_zoom = ttk.Button(
+            self.controles_zoom, text="Restablecer vista", command=self._restablecer_zoom,
+        )
+        self.boton_restablecer_zoom.pack(side="left")
+        ttk.Label(
+            self.controles_zoom, text="Rueda: zoom · Escala vertical automática", style="Ayuda.TLabel",
+        ).pack(side="left", padx=8)
+        self.controles_zoom.grid_remove()
         self.canvas_grafica = tk.Canvas(
             marco, height=210, background="white", highlightthickness=0,
         )
         self.canvas_grafica.grid(row=1, column=0, sticky="ew")
         self.canvas_grafica.bind("<Configure>", self._redibujar_grafica)
+        self.canvas_grafica.bind("<MouseWheel>", self._zoom_rueda)
+        self.canvas_grafica.bind("<Button-4>", self._zoom_rueda)
+        self.canvas_grafica.bind("<Button-5>", self._zoom_rueda)
         self.resultado_biseccion = None
         self.funcion_grafica = None
         area, self.txt_resultado = crear_area_resultado(marco, alto=4)
@@ -542,12 +592,66 @@ class PestanaBiseccion(ttk.Frame):
         self.tabla_iteraciones.yview_scroll(pasos, "units")
         return "break"
 
+    def _alternar_vista_grafica(self):
+        """Amplía el lienzo en la pestaña conservando el cálculo y la tabla."""
+        if self.iteraciones_expandidas:
+            self._alternar_vista_iteraciones()
+        if not self.grafica_expandida:
+            self.marco_entrada.grid_remove()
+            self.area_resumen.grid_remove()
+            self.procedimiento.grid_remove()
+            self.marco_resultado.grid_configure(column=0, columnspan=2, padx=0)
+            self.marco_resultado.rowconfigure(3, weight=0)
+            self.canvas_grafica.grid_configure(sticky="nsew")
+            self.boton_expandir_grafica.configure(text="Volver al resultado")
+            self.grafica_expandida = True
+            self.controles_zoom.grid()
+        else:
+            self.marco_entrada.grid()
+            self.area_resumen.grid()
+            self.procedimiento.grid()
+            self.marco_resultado.grid_configure(column=1, columnspan=1, padx=(7, 0))
+            self.marco_resultado.rowconfigure(3, weight=1)
+            self.canvas_grafica.grid_configure(sticky="ew")
+            self.boton_expandir_grafica.configure(text="Expandir gráfica")
+            self.grafica_expandida = False
+            self.controles_zoom.grid_remove()
+        self._redibujar_grafica()
+
+    def _cambiar_zoom(self, pasos):
+        """Acerca o aleja la vista manteniendo visible la raíz calculada."""
+        if not self.grafica_expandida or self.resultado_biseccion is None:
+            return
+        nivel = max(-12, min(12, self.nivel_zoom + pasos))
+        a, b = self.resultado_biseccion.intervalo_inicial
+        if _intervalo_zoom(a, b, self.resultado_biseccion.raiz, nivel) is None:
+            return
+        self.nivel_zoom = nivel
+        self._redibujar_grafica()
+
+    def _restablecer_zoom(self):
+        self.nivel_zoom = 0
+        self._redibujar_grafica()
+
+    def _zoom_rueda(self, evento):
+        if not self.grafica_expandida or self.resultado_biseccion is None:
+            return
+        numero = getattr(evento, "num", None)
+        delta = getattr(evento, "delta", 0)
+        if numero == 4 or delta > 0:
+            self._cambiar_zoom(1)
+        elif numero == 5 or delta < 0:
+            self._cambiar_zoom(-1)
+        return "break"
+
     def _alternar_vista_iteraciones(self):
         """Oculta temporalmente los otros paneles para ampliar la tabla."""
+        if self.grafica_expandida:
+            self._alternar_vista_grafica()
         # Oculta temporalmente entradas y gráfica para dedicar el ancho a la tabla.
         if not self.iteraciones_expandidas:
             self.marco_entrada.grid_remove()
-            self.etiqueta_grafica.grid_remove()
+            self.barra_grafica.grid_remove()
             self.canvas_grafica.grid_remove()
             self.area_resumen.grid_remove()
             self.marco_resultado.grid_configure(
@@ -569,7 +673,7 @@ class PestanaBiseccion(ttk.Frame):
             self.marco_resultado.rowconfigure(1, weight=1)
             self.marco_resultado.rowconfigure(2, weight=0)
             self.marco_resultado.rowconfigure(3, weight=1)
-            self.etiqueta_grafica.grid()
+            self.barra_grafica.grid()
             self.canvas_grafica.grid()
             self.area_resumen.grid()
             self.procedimiento.grid_configure(row=3, sticky="nsew", pady=(5, 0))
@@ -632,8 +736,16 @@ class PestanaBiseccion(ttk.Frame):
             self._mostrar_mensaje_grafica()
             return
         a, b = self.resultado_biseccion.intervalo_inicial
+        if getattr(self, "_resultado_zoom", None) is not self.resultado_biseccion:
+            self.nivel_zoom = 0
+            self._resultado_zoom = self.resultado_biseccion
+        vista = _intervalo_zoom(
+            a, b, self.resultado_biseccion.raiz,
+            self.nivel_zoom if self.grafica_expandida else 0,
+        )
         dibujar_grafica_biseccion(
             self.canvas_grafica, self.funcion_grafica, a, b, self.resultado_biseccion,
+            intervalo_vista=vista,
         )
 
     def _cargar_ejemplo(self):

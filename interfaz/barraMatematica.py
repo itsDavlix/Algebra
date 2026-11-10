@@ -72,11 +72,13 @@ class BarraMatematica:
         grupos = (
             ("Funciones (ángulos en radianes)", (
                 ("sen", "sin(", ")"), ("cos", "cos(", ")"), ("tan", "tan(", ")"),
+                ("arccos", "acos(", ")"),
                 ("√", "sqrt(", ")"), ("|x|", "abs(", ")"),
                 ("ln", "log(", ")"), ("log₁₀", "log10(", ")"), ("exp", "exp(", ")"),
             ), "expresion"),
             ("Operaciones y constantes", (
-                ("×", "*", ""), ("÷", "/", ""), ("xⁿ", "**", ""),
+                ("×", "*", ""), ("÷", "/", ""), ("xʸ", "**", ""),
+                ("^", "^", ""),
                 ("x²", "**2", ""), ("( )", "(", ")"), ("=", " = ", ""),
                 ("x", "x", ""), ("π", "pi", ""), ("e", "e", ""),
             ), "expresion"),
@@ -106,7 +108,13 @@ class BarraMatematica:
                 )
                 boton.grid(row=indice // 5, column=indice % 5, padx=2, pady=2, sticky="ew")
                 marco.columnconfigure(indice % 5, weight=1)
-                AyudaEmergente(boton, "Inserta: " + (prefijo + "…" + sufijo if sufijo else repr(prefijo)))
+                ayuda = {
+                    "**": "Elevado a: escribe la base, pulsa xʸ y escribe el exponente. Ejemplo: 2**3 = 8.",
+                    "^": "Elevado a: escribe la base, pulsa ^ y escribe el exponente. Ejemplo: 2^3 = 8.",
+                    "cos(": "Coseno: cos(x), con el ángulo en radianes.",
+                    "acos(": "Coseno inverso: arccos(x). Admite valores entre -1 y 1 y devuelve radianes.",
+                }.get(prefijo)
+                AyudaEmergente(boton, ayuda or "Inserta: " + (prefijo + "…" + sufijo if sufijo else repr(prefijo)))
                 self.botones.append((boton, tipo, prefijo))
         ttk.Button(contenido, text="Cerrar", command=self.ocultar, takefocus=False).pack(anchor="e")
         ttk.Label(
@@ -168,7 +176,7 @@ class BarraMatematica:
             fin = campo.index("sel.last") if seleccion else inicio
             contenido = campo.get()
             texto = contenido[inicio:fin]
-            if texto and prefijo in ("**", "**2"):
+            if texto and prefijo in ("**", "**2", "^"):
                 prefijo, sufijo = "(", ")" + prefijo
             if getattr(campo, "entrada_matematica", False) and (
                 sufijo or prefijo in ("x", "pi", "e") or prefijo.startswith("si(")

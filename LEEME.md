@@ -6,6 +6,8 @@ Pulsa **Mostrar símbolos**, junto al botón de modo oscuro, para abrir una pale
 
 Los botones `<`, `>`, `≤`, `≥`, `==` y `≠` permiten construir condiciones dentro de **si(…)**: `si(x < 0, -x, x)` equivale al valor absoluto. Su formato es `si(condición, valor si se cumple, valor en otro caso)`. También se admite una igualdad como `si(x <= 0, -x, x) = 2`. Se evalúa únicamente el tramo elegido. Estos métodos siguen buscando raíces de funciones continuas: no resuelven inecuaciones completas como `x^2 > 4`; comprueba la continuidad al definir los tramos.
 
+El botón **xʸ** significa «elevado a»: escribe la base, pulsa el botón y escribe el exponente (por ejemplo, `2**3`). Si seleccionas una expresión, la agrupa como base: `(x+1)**`. **cos** inserta el coseno habitual y **arccos** inserta el coseno inverso (`acos(...)`), cuyo argumento debe estar entre -1 y 1 y cuyo resultado se expresa en radianes. También puedes escribir `arccos(...)` directamente.
+
 En la pestaña Matrices, ingresa cada elemento de A y B en su propia casilla y ajusta el número de filas y columnas con los controles. Así no necesitas separar valores con espacios. Si una casilla está vacía o tiene un valor inválido, el programa indica su posición. Para calcular un determinante, ingresa una matriz cuadrada en A y pulsa **Determinante de A**. La ventana muestra la recomendación de eficiencia antes de elegir **Cofactores** o **LU con pivoteo parcial**. Marca una opción y pulsa **Calcular**. No hace falta completar B.
 
 ## Organización del código
@@ -36,7 +38,7 @@ La continuidad en `[a,b]` es un requisito matemático y no se puede certificar a
 
 - La función debe ser continua en todo `[a, b]`, con `a < b`. Los extremos deben tener signos opuestos o uno debe ser una raíz. Tener el mismo signo no demuestra que no existan raíces; elige otro intervalo.
 - Usa `*` para multiplicar (`2*x`), `^` o `**` para potencias, paréntesis y punto decimal. Se acepta notación científica (`1e-6`). No se admite multiplicación implícita (`2x`).
-- Funciones disponibles: `sin`/`sen`, `cos`, `tan`, `sqrt`/`raiz`, `exp`, `log`/`ln` (logaritmo natural), `log10` y `abs`, todas de un argumento. Constantes: `pi` y `e`. Los ángulos se expresan en radianes.
+- Funciones disponibles: `sin`/`sen`, `cos`, `acos`/`arccos` (coseno inverso), `tan`, `sqrt`/`raiz`, `exp`, `log`/`ln` (logaritmo natural), `log10` y `abs`, todas de un argumento. Constantes: `pi` y `e`. Los ángulos se expresan en radianes.
 - La tolerancia debe ser positiva y el máximo de iteraciones, un entero entre 1 y 1000. No se utiliza el residuo `|f(x)|` como sustituto de la cota del error en la raíz.
 - El algoritmo conserva la mitad con cambio de signo. Se detiene al encontrar `f(c) = 0` en la precisión de cálculo o al cumplir la tolerancia de la cota `max(c-a, b-c)`, equivalente a `(b-a)/2` en aritmética exacta.
 - Al agotar las iteraciones o la precisión de coma flotante, muestra la última aproximación **sin afirmar convergencia**. Los errores de dominio en los puntos evaluados se informan; la aplicación no puede demostrar la continuidad en todos los puntos del intervalo.
