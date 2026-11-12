@@ -63,9 +63,18 @@ Los métodos no exigen cambio de signo ni garantizan convergencia. Una derivada 
 de la función en Secante, estancamiento o agotamiento de iteraciones se informan sin afirmar éxito.
 Las expresiones usan el mismo evaluador matemático restringido que Bisección, sin dependencias nuevas.
 
+Después de resolver, **Graficar y ver puntos** abre la gráfica del último cálculo de Newton-Raphson o Secante.
+Muestra las semillas, las aproximaciones, la raíz o el estado sin convergencia, el residuo y la tolerancia.
+Selecciona una iteración para ver su tangente o secante y el corte con el eje x; **Enfocar este paso** ajusta la vista.
+Las tablas separan los puntos del método de las 241 muestras uniformes usadas para dibujar la curva.
+Las muestras fuera del dominio quedan indicadas y separan los trazos. La explicación describe cómo se obtiene
+el siguiente punto; una gráfica muestreada no certifica continuidad ni la existencia de todas las raíces.
+
 ## Tolerancias numéricas
 
-El formato de matrices y vectores utiliza un umbral de cero relativo a la mayor magnitud del bloque mostrado; la eliminación de Gauss-Jordan compara pivotes y factores con la escala de los coeficientes. Así, matrices uniformemente pequeñas no se declaran singulares por un umbral absoluto. La matriz inversa muestra una advertencia cuando su número de condición en norma 1 supera `1e8`; una condición alta indica sensibilidad a errores de redondeo, no un fallo del algoritmo. El cálculo del determinante conserva racionales exactos a partir de los valores recibidos y presenta aproximaciones decimales solo para mostrarlos.
+La selección de pivotes de Gauss-Jordan usa una tolerancia relativa a la escala de los coeficientes; la eliminación conserva los factores no nulos de las filas normalizadas. Las matrices mostradas conservan sus componentes pequeñas aunque haya valores mayores en otras posiciones. La solución copiada al campo X mantiene la precisión de cálculo. La matriz inversa muestra una advertencia cuando su número de condición en norma 1 supera `1e8`; una condición alta indica sensibilidad a errores de redondeo. El cálculo del determinante conserva racionales exactos a partir de los números recibidos. La norma de vectores usa un cálculo escalado para evitar desbordamientos y pérdidas a cero al elevar al cuadrado.
+
+Regula Falsi exige que tanto el paso entre aproximaciones como el residuo absoluto `|f(x)|` cumplan la tolerancia, salvo que encuentre un cero en la precisión de cálculo. Esto evita declarar convergencia solo porque el método avance muy poco. El paso sigue siendo una estimación, no una cota del error real; el residuo depende de la escala de la función. En Newton-Raphson la derivada introducida debe ser correcta. Los cálculos numéricos no certifican la continuidad ni garantizan encontrar todas las raíces.
 
 ## Operaciones de matrices y vectores
 

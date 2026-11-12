@@ -4,7 +4,7 @@ from tkinter import ttk
 
 from interfaz.ayudas import mostrar_error, mostrar_texto
 from interfaz.pestanaBiseccion import PestanaBiseccion, _numero_tabla
-from nucleo.biseccion import autoajustar_biseccion, preparar_funcion
+from nucleo.biseccion import _numero, autoajustar_biseccion, preparar_funcion
 from nucleo.reglafalsa import (
     nota_estancamiento, resolver_reglafalsa,
 )
@@ -59,11 +59,11 @@ class PestanaReglaFalsa(PestanaBiseccion):
         error = _numero_regla_falsa(resultado.error)
         lineas = [
             "RESPUESTA · RAÍZ APROXIMADA" if resultado.convergio else "SIN CONVERGENCIA · ÚLTIMA APROXIMACIÓN",
-            f"x ≈ {_numero_tabla(resultado.raiz)}",
+            f"x ≈ {_numero(resultado.raiz)}",
             f"Estado: {estado}", "", "COMPROBACIÓN",
             f"Al sustituir la aproximación: f(x) = {_numero_tabla(resultado.valor_funcion)}",
             f"Error estimado |c − c anterior|: {error}",
-            f"Tolerancia: {_numero_tabla(resultado.tolerancia)}",
+            f"Tolerancia absoluta (paso y residuo): {_numero_tabla(resultado.tolerancia)}",
             "", "EXPLICACIÓN · REGULA FALSI",
             f"Iteraciones: {len(resultado.iteraciones)}",
             f"Motivo: {resultado.motivo}",

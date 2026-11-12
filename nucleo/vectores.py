@@ -1,5 +1,6 @@
 """Módulo de vectores: lectura, formato y operaciones algebraicas en R^n."""
 
+import math
 import re
 
 from nucleo.numeros import (
@@ -169,16 +170,11 @@ def producto_cruz_con_pasos(v1, v2):
 
 
 def norma_vector(vector):
-    """Calcula la norma euclidiana de un vector mediante raíz cuadrada."""
+    """Calcula la norma euclidiana sin desbordar los cuadrados intermedios."""
     if not isinstance(vector, (list, tuple)) or not vector:
         raise ValueError("El vector no puede estar vacío.")
-    suma_cuadrados = 0.0
-    for indice, valor in enumerate(vector, 1):
-        valor = asegurar_finito(valor, f"Componente {indice} del vector")
-        suma_cuadrados = asegurar_finito(
-            suma_cuadrados + valor * valor, "Suma de cuadrados del vector",
-        )
-    return asegurar_finito(suma_cuadrados ** 0.5, "Norma del vector")
+    valores = [asegurar_finito(valor, f"Componente {i}") for i, valor in enumerate(vector, 1)]
+    return asegurar_finito(math.hypot(*valores), "Norma del vector")
 
 
 def norma_vector_con_pasos(vector):
@@ -188,16 +184,23 @@ def norma_vector_con_pasos(vector):
         asegurar_finito(valor, f"Componente {indice} del vector")
         for indice, valor in enumerate(vector, 1)
     ]
-    cuadrados = [valor * valor for valor in valores]
-    suma = sum(cuadrados)
-    comprobado = abs(resultado * resultado - suma) <= EPSILON * max(abs(suma), resultado ** 2)
-    escala = escala_de(cuadrados)
+    escala = max(abs(valor) for valor in valores)
+    # Normalizar permite comprobar incluso normas cuyo cuadrado no cabe en float.
+    normalizados = [valor / escala for valor in valores] if escala else valores
+    cuadrados = [valor * valor for valor in normalizados]
+    suma = math.fsum(cuadrados)
+    norma_normalizada = resultado / escala if escala else 0.0
+    comprobado = math.isclose(norma_normalizada**2, suma, rel_tol=EPSILON, abs_tol=0.0)
+    n = lambda valor: limpiar_numero(valor, abs(valor))
     pasos = [
-        "PASO 1. Elevar al cuadrado cada componente:\n"
-        + " + ".join(limpiar_numero(valor, escala) for valor in cuadrados),
-        f"PASO 2. Tomar la raíz cuadrada: ||V|| = ({limpiar_numero(suma, escala)})**0.5 "
-        f"= {limpiar_numero(resultado, escala_de([resultado]))}.",
-        "COMPROBACIÓN. Elevar la norma al cuadrado debe recuperar la suma de cuadrados.\n"
+        f"PASO 1. Tomar s = max(|componentes|) = {n(escala)}.\n"
+        + ("El vector es cero, por lo que su norma es cero." if escala == 0 else
+           "Dividir las componentes entre s para evitar desbordamientos:\n"
+           + "(" + ", ".join(n(valor) for valor in normalizados) + ")"),
+        "PASO 2. Sumar los cuadrados de las componentes normalizadas:\n"
+        + " + ".join(n(valor) for valor in cuadrados) + f" = {n(suma)}",
+        f"PASO 3. Recuperar la escala: ||V|| = {n(escala)} × sqrt({n(suma)}) ≈ {n(resultado)}.",
+        "COMPROBACIÓN. El cuadrado de la norma normalizada debe coincidir con la suma anterior.\n"
         + ("✓ La comprobación es correcta." if comprobado else "✗ La comprobación no coincide."),
     ]
     return resultado, pasos

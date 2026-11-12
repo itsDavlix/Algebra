@@ -3,7 +3,7 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from nucleo.biseccion import MAX_ITERACIONES, preparar_funcion
+from nucleo.biseccion import MAX_ITERACIONES, _numero, preparar_funcion
 from nucleo.numeros import asegurar_finito
 
 
@@ -130,10 +130,10 @@ def formatear_resultado_abierto(resultado):
     error = "no disponible" if resultado.error is None else n(resultado.error)
     lineas = [
         "RESPUESTA · RAÍZ APROXIMADA" if resultado.convergio else "SIN CONVERGENCIA · ÚLTIMA APROXIMACIÓN",
-        f"x ≈ {n(resultado.raiz)}",
+        f"x ≈ {_numero(resultado.raiz)}",
         f"{estado} · Método: {resultado.metodo}",
         "", "COMPROBACIÓN",
-        f"Al sustituir x ≈ {n(resultado.raiz)} en la función:",
+        "Al sustituir la aproximación calculada (antes de redondear):",
         f"f(x) = {n(resultado.valor_funcion)}",
         f"Residuo |f(x)| = {n(abs(resultado.valor_funcion))}",
         "El residuo mide cuánto falta para que la ecuación valga cero; no es el error en x.",

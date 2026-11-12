@@ -4,6 +4,8 @@ import tkinter as tk
 from tkinter import ttk
 
 from interfaz.ayudas import crear_area_resultado, mostrar_error, mostrar_texto
+from interfaz.graficaMetodosAbiertos import GraficaMetodosAbiertos
+from nucleo.biseccion import preparar_funcion
 from nucleo.metodosabiertos import (
     METODOS_ABIERTOS, formatear_resultado_abierto, resolver_metodo_abierto,
 )
@@ -19,6 +21,8 @@ class PestanaMetodosAbiertos(ttk.Frame):
         self.columnconfigure(1, weight=2)
         self.rowconfigure(0, weight=1)
         self.resultado = None
+        self._datos_grafica = None
+        self._ventana_grafica = None
         self.var_metodo = tk.StringVar(self, value=METODOS_ABIERTOS[0])
         for nombre in ("ecuacion", "derivada", "x0", "x1", "tolerancia", "iteraciones"):
             setattr(self, "var_" + nombre, tk.StringVar(self))
@@ -62,6 +66,9 @@ class PestanaMetodosAbiertos(ttk.Frame):
         salida = ttk.LabelFrame(self, text="Respuesta y explicación", padding=12,
                                 style="Seccion.TLabelframe")
         salida.grid(row=0, column=1, sticky="nsew")
+        self.boton_grafica = ttk.Button(salida, text="Graficar y ver puntos", state="disabled",
+                                       command=self._abrir_grafica)
+        self.boton_grafica.pack(anchor="e", pady=(0, 6))
         area, self.txt_resultado = crear_area_resultado(salida, alto=20, destacado=True)
         area.pack(fill="both", expand=True)
         self._cargar_ejemplo()
@@ -71,6 +78,7 @@ class PestanaMetodosAbiertos(ttk.Frame):
         self.entrada_derivada.configure(state="normal" if newton else "disabled")
         self.entrada_x1.configure(state="disabled" if newton else "normal")
         self.resultado = None
+        self._descartar_grafica()
         mostrar_texto(self.txt_resultado, f"Método seleccionado: {self.var_metodo.get()}. Pulsa «Resolver».")
 
     def _accion_resolver(self, _evento=None):
@@ -89,10 +97,34 @@ class PestanaMetodosAbiertos(ttk.Frame):
                 max_iteraciones=max_iteraciones,
             )
             mostrar_texto(self.txt_resultado, formatear_resultado_abierto(self.resultado))
+            self._descartar_grafica()
+            funcion, _ = preparar_funcion(self.var_ecuacion.get())
+            self._datos_grafica = (funcion, self.resultado, (x0, x1) if metodo == "Secante" else (x0,))
+            self.boton_grafica.configure(state="normal")
         except ValueError as error:
             self.resultado = None
+            self._descartar_grafica()
             mostrar_texto(self.txt_resultado, "NO SE PUDO RESOLVER\nNo se pudo resolver la ecuación.\n\n" + str(error))
             mostrar_error(error)
+
+    def _abrir_grafica(self):
+        """Grafica una copia del último cálculo, aunque se editen después los campos."""
+        if self._datos_grafica is None:
+            return
+        if self._ventana_grafica is not None and self._ventana_grafica.winfo_exists():
+            self._ventana_grafica.deiconify()
+            self._ventana_grafica.lift()
+            return
+        self._ventana_grafica = GraficaMetodosAbiertos(self, *self._datos_grafica)
+
+    def _descartar_grafica(self):
+        """Retira la gráfica anterior al limpiar, cambiar de método o recalcular."""
+        ventana = getattr(self, "_ventana_grafica", None)
+        if ventana is not None and ventana.winfo_exists():
+            ventana.destroy()
+        self._ventana_grafica = None
+        self._datos_grafica = None
+        self.boton_grafica.configure(state="disabled")
 
     def _cargar_ejemplo(self):
         for nombre, valor in (
@@ -108,5 +140,6 @@ class PestanaMetodosAbiertos(ttk.Frame):
         self.var_tolerancia.set("1e-6")
         self.var_iteraciones.set("100")
         self.resultado = None
+        self._descartar_grafica()
         mostrar_texto(self.txt_resultado, "")
         self.entrada_ecuacion.focus_set()

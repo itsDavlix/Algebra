@@ -9,7 +9,7 @@ from interfaz.estilos import (
     AZUL, AZUL_BORDE, AZUL_CLARO, ROJO, TEXTO, TEXTO_SUAVE, VERDE,
 )
 from nucleo.biseccion import (
-    MAX_ITERACIONES, autoajustar_biseccion, preparar_funcion, resolver_biseccion,
+    MAX_ITERACIONES, _numero, autoajustar_biseccion, preparar_funcion, resolver_biseccion,
 )
 
 
@@ -235,7 +235,7 @@ def _resumen_resultado(resultado):
     return (
         ("RESPUESTA · RAÍZ APROXIMADA\n" if resultado.convergio
          else "SIN CONVERGENCIA · ÚLTIMA APROXIMACIÓN\n")
-        + f"x ≈ {_numero_tabla(resultado.raiz)}\n"
+        + f"x ≈ {_numero(resultado.raiz)}\n"
         f"Estado: {estado}\n\n"
         "COMPROBACIÓN\n"
         f"Al sustituir la aproximación: f(x) = {_numero_tabla(resultado.valor_funcion)}\n"

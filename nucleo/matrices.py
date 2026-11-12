@@ -94,9 +94,8 @@ def matriz_a_texto(matriz):
     if not matriz:
         return "[]"
     _validar_matriz(matriz)
-    escala = escala_de(matriz)
     return "\n".join(
-        "[ " + "   ".join(limpiar_numero(x, escala) for x in fila) + " ]"
+        "[ " + "   ".join(limpiar_numero(x, abs(x)) for x in fila) + " ]"
         for fila in matriz
     )
 
@@ -105,15 +104,13 @@ def matriz_ampliada_a_texto(matriz, separacion):
     _validar_matriz(matriz, "La matriz ampliada", validar_limites=False)
     if not isinstance(separacion, int) or not 0 < separacion < len(matriz[0]):
         raise ValueError("La separación de la matriz ampliada no es válida.")
-    escala_izquierda = escala_de([fila[:separacion] for fila in matriz])
-    escala_derecha = escala_de([fila[separacion:] for fila in matriz])
     lineas = []
     for fila in matriz:
         izquierda = "   ".join(
-            limpiar_numero(x, escala_izquierda) for x in fila[:separacion]
+            limpiar_numero(x, abs(x)) for x in fila[:separacion]
         )
         derecha = "   ".join(
-            limpiar_numero(x, escala_derecha) for x in fila[separacion:]
+            limpiar_numero(x, abs(x)) for x in fila[separacion:]
         )
         lineas.append(f"[ {izquierda}   |   {derecha} ]")
     return "\n".join(lineas)
@@ -189,7 +186,9 @@ def _eliminar_columna(matriz, fila_pivote, columna, umbral, ancho):
         if indice_fila == fila_pivote:
             continue
         factor = matriz[indice_fila][columna]
-        if abs(factor) <= umbral:
+        # Las filas con pivote ya están normalizadas: el umbral de la matriz
+        # original no sirve para descartar sus factores (por ejemplo 0.5).
+        if factor == 0:
             continue
         nueva_fila = []
         for indice in range(ancho):
@@ -203,6 +202,7 @@ def _eliminar_columna(matriz, fila_pivote, columna, umbral, ancho):
                     "Valor durante Gauss-Jordan",
                 )
             )
+        nueva_fila[columna] = 0.0
         matriz[indice_fila] = nueva_fila
         cambios.append((indice_fila, factor))
     return cambios
@@ -320,7 +320,7 @@ def _rango_por_eliminacion(matriz, nombre="A", registrar_pasos=False):
                     f"Eliminar la entrada de F{indice_fila + 1}, columna {columna + 1}:",
                     reducida, None,
                     f"F{indice_fila + 1} ← F{indice_fila + 1} {signo} "
-                    f"({limpiar_numero(abs(factor), escala_de(matriz))})F{fila_pivote + 1}.",
+                    f"({limpiar_numero(abs(factor), abs(factor))})F{fila_pivote + 1}.",
                 ))
                 numero_paso += 1
         fila_pivote += 1
@@ -393,7 +393,7 @@ def matriz_inversa_con_pasos(matriz):
         cambios = _eliminar_columna(aumentada, columna, columna, umbral, 2 * n)
         for indice_fila, factor in cambios:
             signo = "−" if factor >= 0 else "+"
-            magnitud = limpiar_numero(abs(factor), escala_de(matriz))
+            magnitud = limpiar_numero(abs(factor), abs(factor))
             pasos.append(_texto_paso_gauss_jordan(
                 numero_paso,
                 f"Hacer 0 la entrada de F{indice_fila + 1}, columna {columna + 1}:",

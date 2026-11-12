@@ -29,7 +29,7 @@ def _reducir_sistema(a, b):
         for i in range(filas_a)
     ]
     umbral_a = umbral_cero(escala_de(a))
-    umbral_aumentada = umbral_cero(escala_de(aumentada))
+    umbrales_b = [umbral_cero(max(abs(fila[j]) for fila in b)) for j in range(columnas_b)]
     ancho = columnas_a + columnas_b
     fila_pivote = 0
     columnas_pivote = []
@@ -76,7 +76,7 @@ def _reducir_sistema(a, b):
         )
         for indice_fila, factor in cambios:
             signo = "−" if factor >= 0 else "+"
-            magnitud = limpiar_numero(abs(factor), escala_de(a))
+            magnitud = limpiar_numero(abs(factor), abs(factor))
             pasos.append(_texto_paso_gauss_jordan(
                 numero_paso,
                 f"Eliminar la entrada de F{indice_fila + 1}, columna {columna + 1}:",
@@ -91,9 +91,11 @@ def _reducir_sistema(a, b):
             break
 
     # Una fila 0 = valor no nulo demuestra que el sistema es incompatible.
-    for fila in aumentada:
+    # Las filas con pivote representan ecuaciones válidas ya normalizadas;
+    # solo las restantes pueden representar una contradicción 0 = b.
+    for fila in aumentada[fila_pivote:]:
         if all(abs(valor) <= umbral_a for valor in fila[:columnas_a]):
-            if any(abs(valor) > umbral_aumentada for valor in fila[columnas_a:]):
+            if any(abs(valor) > umbrales_b[j] for j, valor in enumerate(fila[columnas_a:])):
                 pasos.append(
                     f"PASO {numero_paso}. Aparece una fila con 0 en todos los coeficientes "
                     "pero un término independiente distinto de 0. El sistema es incompatible."
@@ -109,8 +111,6 @@ def _reducir_sistema(a, b):
 def _texto_solucion_general(reducida, columnas_pivote, columnas_a, columnas_b, nombre_variable):
     """Construye ecuaciones paramétricas a partir de una matriz reducida."""
     libres = [i for i in range(columnas_a) if i not in columnas_pivote]
-    escala = escala_de(reducida)
-    umbral = umbral_cero(escala)
     bloques = []
     for indice_b in range(columnas_b):
         ecuaciones = []
@@ -133,14 +133,14 @@ def _texto_solucion_general(reducida, columnas_pivote, columnas_a, columnas_b, n
                 continue
             fila = fila_por_pivote[columna]
             constante = reducida[fila][columnas_a + indice_b]
-            expresion = limpiar_numero(constante, escala)
+            expresion = limpiar_numero(constante, abs(constante))
             for columna_libre, indice_libre in parametro_por_columna.items():
                 coeficiente = -reducida[fila][columna_libre]
-                if abs(coeficiente) <= umbral:
+                if coeficiente == 0:
                     continue
                 signo = " + " if coeficiente > 0 else " − "
                 magnitud = abs(coeficiente)
-                factor = "" if magnitud == 1 else f"{limpiar_numero(magnitud, escala)}·"
+                factor = "" if magnitud == 1 else f"{limpiar_numero(magnitud, magnitud)}·"
                 expresion += f"{signo}{factor}t{indice_libre}"
             ecuaciones.append(f"{nombre_variable}{columna + 1} = {expresion}")
         bloques.append("\n".join(ecuaciones))

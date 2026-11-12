@@ -47,7 +47,7 @@ class PruebasAccionesBiseccion(unittest.TestCase):
         self.pestana._accion_resolver()
         salida = mostrar.call_args.args[1]
         self.assertIn("convergencia alcanzada", salida)
-        self.assertIn("x ≈ 1.52138", salida)
+        self.assertIn(f"x ≈ {self.pestana.resultado_biseccion.raiz}", salida)
         self.assertIn("Iteraciones: 20", salida)
         error.assert_not_called()
         self.assertEqual(self.pestana.canvas_grafica.create_oval.call_count, 4)

@@ -65,8 +65,8 @@ def punto_falsa_posicion(a, b, fa, fb):
 def resolver_reglafalsa(ecuacion, a, b, tolerancia=1e-6, max_iteraciones=100):
     """Busca una raíz aproximada en un intervalo con valores de signos opuestos.
 
-    La parada por tolerancia compara aproximaciones consecutivas; es una
-    estimación del error, no una cota. Se requiere que f sea continua en [a,b].
+    La parada requiere tanto un paso pequeño como un residuo absoluto pequeño.
+    El paso es una estimación, no una cota. Se requiere f continua en [a,b].
     """
     a = asegurar_finito(a, "El extremo a")
     b = asegurar_finito(b, "El extremo b")
@@ -135,7 +135,7 @@ def resolver_reglafalsa(ecuacion, a, b, tolerancia=1e-6, max_iteraciones=100):
 
         if fc == 0:
             return crear_resultado(
-                c, fc, 0.0, True, "f(c) = 0 en la precisión de cálculo.",
+                c, fc, error, True, "f(c) = 0 en la precisión de cálculo.",
             )
         if error is not None and error <= tolerancia:
             if abs(fc) > magnitud_extremos:
@@ -144,11 +144,12 @@ def resolver_reglafalsa(ecuacion, a, b, tolerancia=1e-6, max_iteraciones=100):
                     "Posible discontinuidad (polo): |f(c)| supera las magnitudes "
                     "de los extremos; x no es una raíz.",
                 )
-            return crear_resultado(
-                c, fc, error, True,
-                "La diferencia entre dos aproximaciones consecutivas es menor "
-                "o igual que la tolerancia.",
-            )
+            if abs(fc) <= tolerancia:
+                return crear_resultado(
+                    c, fc, error, True,
+                    "El cambio entre aproximaciones y el residuo absoluto "
+                    "son menores o iguales que la tolerancia.",
+                )
         if c == a or c == b:
             return crear_resultado(
                 c, fc, error, False,
@@ -195,19 +196,19 @@ def formatear_resultado_reglafalsa(resultado):
         "",
         f"f(x) = {resultado.expresion}",
         f"Intervalo inicial: [{n(a)}, {n(b)}]",
-        f"Tolerancia en la diferencia entre aproximaciones: {n(resultado.tolerancia)}",
+        f"Tolerancia absoluta (paso y residuo): {n(resultado.tolerancia)}",
         "",
         "CONDICIÓN: el método cerrado requiere f continua en todo [a,b] y "
         "valores de signos opuestos en los extremos. El cambio de signo no "
-        "descarta discontinuidades. La tolerancia compara aproximaciones "
-        "consecutivas: es una estimación, no una cota del error en x. "
+        "descarta discontinuidades. Se exige que el paso y el residuo absoluto "
+        "cumplan la tolerancia; el paso no es una cota del error en x. "
         "Los cálculos usan la precisión de coma flotante de Python.",
         "",
         "PROCEDIMIENTO PASO A PASO",
         "1. Evaluar f(a) y f(b), comprobar el cambio de signo y la continuidad.",
         "2. Unir (a,f(a)) y (b,f(b)); calcular el corte c de esa secante con x.",
         "3. Evaluar f(c); reemplazar el extremo que conserva el cambio de signo.",
-        "4. Repetir hasta que f(c)=0, la diferencia sea menor que la tolerancia "
+        "4. Repetir hasta que f(c)=0, el paso y el residuo cumplan la tolerancia "
         "o se alcance un límite.",
     ]
     aviso = nota_estancamiento(resultado)

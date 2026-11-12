@@ -90,7 +90,7 @@ class PruebasSeleccionMetodos(unittest.TestCase):
         self.p = PestanaMetodosAbiertos.__new__(PestanaMetodosAbiertos)
         for nombre in ("metodo", "ecuacion", "derivada", "x0", "x1", "tolerancia", "iteraciones"):
             setattr(self.p, "var_" + nombre, tk.StringVar(self.tcl))
-        for nombre in ("entrada_derivada", "entrada_x1", "entrada_ecuacion", "txt_resultado"):
+        for nombre in ("entrada_derivada", "entrada_x1", "entrada_ecuacion", "txt_resultado", "boton_grafica"):
             setattr(self.p, nombre, Mock())
         self.p.var_metodo.set("Newton-Raphson")
 

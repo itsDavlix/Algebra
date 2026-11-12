@@ -84,7 +84,7 @@ class PruebasReglaFalsa(unittest.TestCase):
         raiz_exacta = resolver_reglafalsa("x", -1, 1)
         self.assertTrue(raiz_exacta.convergio)
         self.assertEqual(raiz_exacta.valor_funcion, 0)
-        self.assertEqual(raiz_exacta.error, 0)
+        self.assertIsNone(raiz_exacta.error)  # No hay aproximación anterior para comparar.
         self.assertIsNone(raiz_exacta.iteraciones[0].error_relativo)
 
         limite = resolver_reglafalsa("x^10 - 1", 0, 1.3, 1e-12, 5)
@@ -127,7 +127,8 @@ class PruebasReglaFalsa(unittest.TestCase):
         resultado = resolver_reglafalsa("x^3 - x - 2 = 0", 1, 2, 1e-6)
         self.assertTrue(resultado.convergio)
         self.assertAlmostEqual(resultado.raiz, 1.52138, places=5)
-        self.assertEqual(len(resultado.iteraciones), 12)
+        self.assertEqual(len(resultado.iteraciones), 13)
+        self.assertLessEqual(abs(resultado.valor_funcion), resultado.tolerancia)
         self.assertEqual(resultado.extremo_estancado, "b")
 
 

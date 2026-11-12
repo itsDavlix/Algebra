@@ -4,7 +4,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from nucleo.matrices import leer_matriz, matriz_a_texto, multiplicar_matrices, dimensiones
-from nucleo.comprobaciones import matrices_aproximadamente_iguales, TOLERANCIA
+from nucleo.comprobaciones import matrices_aproximadamente_iguales, numeros_aproximadamente_iguales
 from nucleo.numeros import limpiar_numero, escala_de
 from nucleo.sistemas import (
     resolver_sistema_gauss_jordan_con_pasos, ErrorSistemaIncompatible,
@@ -72,7 +72,6 @@ class PestanaEcuaciones(ttk.Frame):
             a = leer_matriz(self.txt_a.get("1.0", "end"), "matriz A")
             b = leer_matriz(self.txt_b.get("1.0", "end"), "matriz B")
             solucion, tipo, pivotes, pasos = resolver_sistema_gauss_jordan_con_pasos(a, b)
-            escala_solucion = escala_de(solucion)
 
             salida = (
                 "RESPUESTA · SOLUCIÓN ÚNICA\nX =\n" + matriz_a_texto(solucion)
@@ -105,7 +104,7 @@ class PestanaEcuaciones(ttk.Frame):
             mostrar_texto(self.txt_resultado, salida)
 
             texto_x = "\n".join(
-                " ".join(limpiar_numero(x, escala_solucion) for x in fila)
+                " ".join(repr(float(x)) for x in fila)
                 for fila in solucion
             )
             self.txt_x.delete("1.0", "end")
@@ -147,10 +146,9 @@ class PestanaEcuaciones(ttk.Frame):
             comparaciones = []
             for i in range(len(producto)):
                 for j in range(len(producto[0])):
-                    escala = max(abs(producto[i][j]), abs(b[i][j]))
                     simbolo = (
-                        "="
-                        if abs(producto[i][j] - b[i][j]) <= TOLERANCIA * escala
+                        "≈"
+                        if numeros_aproximadamente_iguales(producto[i][j], b[i][j])
                         else "≠"
                     )
                     comparaciones.append(
