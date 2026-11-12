@@ -12,6 +12,7 @@ Características:
 - Resolución y evaluación de ecuaciones matriciales A·X = B.
 - Resolución de ecuaciones de una variable por el método de bisección.
 - Resolución de ecuaciones de una variable por Regula Falsi (falsa posición).
+- Selección de métodos abiertos: Newton-Raphson y Secante.
 - Operaciones con números romanos.
 - Comprobaciones automáticas de resultados con tolerancia numérica.
 - Opción para ejecutar un programa .py elaborado anteriormente."""
@@ -36,6 +37,7 @@ from interfaz.pestanaMatrices import PestanaMatrices
 from interfaz.pestanaEcuaciones import PestanaEcuaciones
 from interfaz.pestanaBiseccion import PestanaBiseccion
 from interfaz.pestanaReglaFalsa import PestanaReglaFalsa
+from interfaz.pestanaMetodosAbiertos import PestanaMetodosAbiertos
 from interfaz.pestanaRomanos import PestanaRomanos
 from interfaz.programaAnterior import PestanaProgramaAnterior
 
@@ -96,6 +98,7 @@ class CalculadoraAlgebraLineal(tk.Tk):
         notebook.add(PestanaEcuaciones(notebook), text="Ecuaciones A·X = B")
         notebook.add(PestanaBiseccion(notebook), text="Bisección")
         notebook.add(PestanaReglaFalsa(notebook), text="Regula Falsi")
+        notebook.add(PestanaMetodosAbiertos(notebook), text="Métodos abiertos")
         notebook.add(PestanaRomanos(notebook), text="Números romanos")
         notebook.add(PestanaProgramaAnterior(notebook), text="Programa anterior")
 

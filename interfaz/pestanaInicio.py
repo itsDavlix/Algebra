@@ -34,6 +34,7 @@ class PestanaInicio(ttk.Frame):
             "• Matrices: suma, resta, producto por escalar, producto de matrices, matriz inversa y comprobaciones.\n"
             "• Ecuaciones A·X = B: resolución por Gauss-Jordan y comprobación de una solución propuesta.\n"
             "• Bisección: raíces de ecuaciones en x, con intervalo, tolerancia y procedimiento.\n"
+            "• Métodos abiertos: selección de Newton-Raphson o Secante, con valores iniciales y procedimiento.\n"
             "• Números romanos: suma, resta, multiplicación y división exacta.\n"
             "• Programa anterior: permite ejecutar un archivo .py elaborado previamente.\n\n"
             "El programa usa únicamente Python estándar, sin bibliotecas externas."

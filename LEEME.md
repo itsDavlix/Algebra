@@ -47,6 +47,22 @@ La nueva función utiliza únicamente la biblioteca estándar. Las expresiones s
 
 Archivos añadidos: `nucleo/biseccion.py` (evaluación y método), `interfaz/pestanaBiseccion.py` (interfaz) y `tests/test_biseccion.py` / `tests/test_biseccion_interfaz.py` (pruebas). La pestaña se registra en `main.py`.
 
+## Métodos abiertos: Newton-Raphson y Secante
+
+En **Métodos abiertos**, selecciona el método y escribe una expresión o igualdad en `x`.
+**Newton-Raphson** necesita `x0` y la derivada de la función igualada a cero;
+por ejemplo, para `x^3 - x - 2 = 0`, usa `3*x^2 - 1` y `x0 = 1.5`.
+**Secante** necesita dos valores distintos (`x0 = 1.5`, `x1 = 2`) y no requiere derivada.
+El selector habilita los campos del método elegido. Ambos ejemplos aproximan la raíz `1.5213797068`.
+
+Pulsa **Resolver** o Enter para ver la fórmula, las iteraciones, el residuo y el motivo de parada.
+Puedes ajustar la tolerancia positiva y el máximo de iteraciones (1 a 1000), cargar el ejemplo o limpiar.
+Se declara convergencia si la función vale cero en la precisión de cálculo o si tanto el paso absoluto
+como el residuo absoluto cumplen la tolerancia. Esta tolerancia no es una cota del error real.
+Los métodos no exigen cambio de signo ni garantizan convergencia. Una derivada nula, valores iguales
+de la función en Secante, estancamiento o agotamiento de iteraciones se informan sin afirmar éxito.
+Las expresiones usan el mismo evaluador matemático restringido que Bisección, sin dependencias nuevas.
+
 ## Tolerancias numéricas
 
 El formato de matrices y vectores utiliza un umbral de cero relativo a la mayor magnitud del bloque mostrado; la eliminación de Gauss-Jordan compara pivotes y factores con la escala de los coeficientes. Así, matrices uniformemente pequeñas no se declaran singulares por un umbral absoluto. La matriz inversa muestra una advertencia cuando su número de condición en norma 1 supera `1e8`; una condición alta indica sensibilidad a errores de redondeo, no un fallo del algoritmo. El cálculo del determinante conserva racionales exactos a partir de los valores recibidos y presenta aproximaciones decimales solo para mostrarlos.
