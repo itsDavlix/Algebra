@@ -21,6 +21,19 @@ def limites_grafica(valores):
     return a, b
 
 
+def intervalo_zoom(a, b, centro, nivel):
+    """Calcula una vista ampliada o reducida alrededor de un punto."""
+    if nivel == 0:
+        return a, b
+    factor = 1.5 ** (-nivel)
+    izquierda = centro + (a - centro) * factor
+    derecha = centro + (b - centro) * factor
+    if not (math.isfinite(izquierda) and math.isfinite(derecha)
+            and izquierda < derecha):
+        return None
+    return izquierda, derecha
+
+
 def muestrear_curva(funcion, a, b, cantidad=240):
     """Obtiene las mismas muestras que se muestran en la tabla y en el lienzo."""
     muestras = []
@@ -35,6 +48,31 @@ def muestrear_curva(funcion, a, b, cantidad=240):
             y = None
         muestras.append((x, y))
     return muestras
+
+
+def detectar_raices(muestras):
+    """Detecta cortes con el eje X a partir de muestras consecutivas."""
+    raices = []
+    anterior = None
+    for x, y in muestras:
+        if y is None or not math.isfinite(y):
+            anterior = None
+            continue
+        if y == 0:
+            raices.append(x)
+        elif anterior is not None:
+            x_anterior, y_anterior = anterior
+            if ((y_anterior < 0 < y) or (y < 0 < y_anterior)):
+                proporcion = abs(y_anterior) / (abs(y_anterior) + abs(y))
+                raices.append(x_anterior + (x - x_anterior) * proporcion)
+        anterior = (x, y)
+
+    # Evita repetir una misma raíz cuando varias muestras caen muy cerca.
+    unicas = []
+    for raiz in raices:
+        if not unicas or not math.isclose(raiz, unicas[-1], rel_tol=1e-8, abs_tol=1e-12):
+            unicas.append(raiz)
+    return unicas
 
 
 def puntos_del_metodo(funcion, resultado, iniciales):
@@ -65,6 +103,7 @@ def dibujar_metodo(canvas, resultado, puntos, muestras, paso=None):
     ancho, alto = max(canvas.winfo_width(), 400), max(canvas.winfo_height(), 250)
     izquierda, derecha, arriba, abajo = 82, ancho - 25, 34, alto - 55
     a, b = muestras[0][0], muestras[-1][0]
+    raices = detectar_raices(muestras)
     escala_x = max(abs(a), abs(b)) or 1.0
     na, nb = a / escala_x, b / escala_x
     ys = [y for _, y in muestras if y is not None]
@@ -99,6 +138,9 @@ def dibujar_metodo(canvas, resultado, puntos, muestras, paso=None):
         canvas.create_line(cx(0), arriba, cx(0), abajo, fill=suave, width=2)
     canvas.create_text(derecha, abajo+35, text="x", fill=texto)
     canvas.create_text(izquierda, 15, text="f(x)", fill=texto)
+    canvas.create_text(izquierda + 4, arriba + 10, anchor="w",
+                       text=f"Raíces detectadas en la vista: {len(raices)}",
+                       fill=final, font=("TkDefaultFont", 9, "bold"))
 
     anterior = None
     for x, y in muestras:
@@ -110,6 +152,15 @@ def dibujar_metodo(canvas, resultado, puntos, muestras, paso=None):
         if anterior is not None and abs(actual[1]-anterior[1]) < .65*(abajo-arriba):
             canvas.create_line(*anterior, *actual, fill=curva, width=2, tags="curva")
         anterior = actual
+
+    for raiz in raices:
+        px, py = cx(raiz), cy(0.0)
+        canvas.create_oval(px-5, py-5, px+5, py+5, fill=final, outline=texto,
+                           width=1, tags="raiz_detectada")
+        canvas.create_text(px, min(abajo-12, py+18),
+                           text=f"({raiz:.6g}, 0)", fill=final,
+                           font=("TkDefaultFont", 8, "bold"),
+                           tags="raiz_detectada")
 
     if paso is not None:
         # Segmento de la tangente/secante entre el punto actual y el corte con x.
@@ -165,6 +216,7 @@ class GraficaMetodosAbiertos(tk.Toplevel):
         self.puntos = puntos_del_metodo(funcion, resultado, iniciales)
         self.muestras = []
         self._intervalo = None
+        self.nivel_zoom = 0
         self.enfocar = tk.BooleanVar(self, value=False)
         self.columnconfigure(0, weight=1)
         self.rowconfigure(2, weight=3)
@@ -188,6 +240,12 @@ class GraficaMetodosAbiertos(tk.Toplevel):
         self.selector.bind("<<ComboboxSelected>>", self._redibujar_grafica)
         ttk.Checkbutton(controles, text="Enfocar este paso", variable=self.enfocar,
                         command=self._redibujar_grafica).pack(side="left", padx=8)
+        ttk.Button(controles, text="+ Acercar",
+                   command=lambda: self._cambiar_zoom(1)).pack(side="left", padx=(12, 0))
+        ttk.Button(controles, text="- Alejar",
+                   command=lambda: self._cambiar_zoom(-1)).pack(side="left", padx=6)
+        ttk.Button(controles, text="Restablecer vista",
+                   command=self._restablecer_zoom).pack(side="left")
         ttk.Label(controles, text="Azul: iniciales · Morado: curva/pasos · Ámbar: recta",
                   style="Ayuda.TLabel", wraplength=260).pack(side="left", padx=6)
         self.explicacion = ttk.Label(self, wraplength=900, justify="left", style="Ayuda.TLabel")
@@ -199,6 +257,9 @@ class GraficaMetodosAbiertos(tk.Toplevel):
         for nombre, x, y in self.puntos:
             self.tabla_puntos.insert("", "end", values=(nombre, repr(x), "Fuera del dominio" if y is None else repr(y)))
         actualizar_widgets(self, bool(getattr(padre.winfo_toplevel(), "modo_oscuro", False)))
+        self.canvas.bind("<MouseWheel>", self._zoom_rueda)
+        self.canvas.bind("<Button-4>", self._zoom_rueda)
+        self.canvas.bind("<Button-5>", self._zoom_rueda)
         self._redibujar_grafica()
 
     @staticmethod
@@ -225,7 +286,12 @@ class GraficaMetodosAbiertos(tk.Toplevel):
             xs = [paso.actual, paso.siguiente]
             if paso.anterior is not None and self.resultado.metodo == "Secante":
                 xs.append(paso.anterior)
-        intervalo = limites_grafica(xs)
+        intervalo_base = limites_grafica(xs)
+        centro = (paso.siguiente if self.enfocar.get() and paso is not None
+                  else self.resultado.raiz)
+        intervalo = intervalo_zoom(*intervalo_base, centro, self.nivel_zoom)
+        if intervalo is None:
+            intervalo = intervalo_base
         if intervalo != self._intervalo:
             self.muestras = muestrear_curva(self.funcion, *intervalo)
             self._intervalo = intervalo
@@ -248,3 +314,32 @@ class GraficaMetodosAbiertos(tk.Toplevel):
             f"{fallos} no se pudieron evaluar. Las tablas muestran sus coordenadas. "
             "El muestreo no demuestra continuidad ni detecta todas las raíces.",
             wraplength=max(self.winfo_width()-40, 650))
+        raices = detectar_raices(self.muestras)
+        detalle_raices = (
+            "Ninguna raíz detectada en la vista."
+            if not raices else
+            "Raíces detectadas en la vista: " + ", ".join(
+                f"({raiz:.8g}, 0)" for raiz in raices
+            ) + "."
+        )
+        self.explicacion.configure(
+            text=self.explicacion.cget("text") + " " + detalle_raices,
+        )
+
+    def _cambiar_zoom(self, pasos):
+        """Cambia el nivel de zoom y vuelve a muestrear la curva."""
+        self.nivel_zoom = max(-12, min(12, self.nivel_zoom + pasos))
+        self._redibujar_grafica()
+
+    def _restablecer_zoom(self):
+        self.nivel_zoom = 0
+        self._redibujar_grafica()
+
+    def _zoom_rueda(self, evento):
+        numero = getattr(evento, "num", None)
+        delta = getattr(evento, "delta", 0)
+        if numero == 4 or delta > 0:
+            self._cambiar_zoom(1)
+        elif numero == 5 or delta < 0:
+            self._cambiar_zoom(-1)
+        return "break"

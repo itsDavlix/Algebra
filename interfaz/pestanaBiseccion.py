@@ -11,6 +11,7 @@ from interfaz.estilos import (
 from nucleo.biseccion import (
     MAX_ITERACIONES, _numero, autoajustar_biseccion, preparar_funcion, resolver_biseccion,
 )
+from interfaz.graficaMetodosAbiertos import detectar_raices
 
 
 def _interpolar_x(a, b, proporcion):
@@ -85,6 +86,7 @@ def dibujar_grafica_biseccion(canvas, funcion, a, b, resultado=None, intervalo_v
         fill=color_suave, width=ancho - 32,
         )
         return
+    raices = detectar_raices(list(zip(xs, ys)))
 
     # Escala los valores para dibujar también funciones con magnitudes grandes.
     escala_y = max(max(abs(y) for y in valores), 1.0)
@@ -110,6 +112,11 @@ def dibujar_grafica_biseccion(canvas, funcion, a, b, resultado=None, intervalo_v
     canvas.create_text(
         izquierda, 10, anchor="w", text=f"f(x) = {expresion}",
         fill=color_texto, font=("Helvetica", 10, "bold"),
+    )
+    canvas.create_text(
+        izquierda + 4, 25, anchor="w",
+        text=f"Raíces detectadas en la vista: {len(raices)}",
+        fill=color_verde, font=("Helvetica", 8, "bold"),
     )
     valores_extremos = None
     intervalo_final = None
@@ -206,6 +213,18 @@ def dibujar_grafica_biseccion(canvas, funcion, a, b, resultado=None, intervalo_v
             min(max(x_raiz, izquierda + 52), derecha - 52), arriba + 9,
             text=f"raíz ≈ {resultado.raiz:.6g}", fill=color_verde,
             font=("Helvetica", 8, "bold"),
+        )
+
+    for raiz in raices:
+        px, py = coord_x(raiz), cero_y
+        canvas.create_polygon(
+            px, py - 5, px + 5, py, px, py + 5, px - 5, py,
+            fill=color_verde, outline=color_superficie, tags="raiz_detectada",
+        )
+        canvas.create_text(
+            min(max(px, izquierda + 35), derecha - 35), py + 14,
+            text=f"({raiz:.6g}, 0)", fill=color_verde,
+            font=("Helvetica", 8, "bold"), tags="raiz_detectada",
         )
 
     canvas.create_text(
