@@ -293,6 +293,10 @@ def actualizar_widgets(raiz, oscuro=False):
                     highlightbackground=p["borde"], highlightcolor=p["azul"],
                     selectbackground=p["seleccion"], selectforeground=p["texto"],
                 )
+                if getattr(widget, "resultado_destacado", False) is True:
+                    widget.tag_configure("respuesta", background=p["decision"], foreground=p["azul_hover"])
+                    widget.tag_configure("advertencia", background=p["parada_no"], foreground=p["rojo"])
+                    widget.tag_configure("seccion", foreground=p["azul_hover"])
             elif clase == "Canvas":
                 configurar_colores = getattr(widget, "configurar_colores", None)
                 if configurar_colores is not None:

@@ -233,13 +233,20 @@ def _resumen_resultado(resultado):
     """Resume convergencia, raíz y tolerancia antes del detalle por iteración."""
     estado = "convergencia alcanzada" if resultado.convergio else "aproximación sin convergencia"
     return (
-        f"{estado}: x ≈ {_numero_tabla(resultado.raiz)}    "
-        f"f(x) = {_numero_tabla(resultado.valor_funcion)}\n"
+        ("RESPUESTA · RAÍZ APROXIMADA\n" if resultado.convergio
+         else "SIN CONVERGENCIA · ÚLTIMA APROXIMACIÓN\n")
+        + f"x ≈ {_numero_tabla(resultado.raiz)}\n"
+        f"Estado: {estado}\n\n"
+        "COMPROBACIÓN\n"
+        f"Al sustituir la aproximación: f(x) = {_numero_tabla(resultado.valor_funcion)}\n"
         f"Cota de error: {_numero_tabla(resultado.error)} "
-        f"(tolerancia {_numero_tabla(resultado.tolerancia)})    "
+        f"(tolerancia {_numero_tabla(resultado.tolerancia)})\n\n"
+        "EXPLICACIÓN · BISECCIÓN\n"
         f"Iteraciones: {len(resultado.iteraciones)}\n"
         f"Motivo: {resultado.motivo}\n"
-        "La cota indica cuánto puede diferir x de la raíz si f es continua en el intervalo."
+        "La cota indica cuánto puede diferir x de la raíz si f es continua en el intervalo.\n"
+        "En cada paso dividimos el intervalo por la mitad y conservamos la parte con cambio de signo. "
+        "Debajo puedes expandir cada iteración para consultar sus cálculos."
     )
 
 
@@ -325,15 +332,15 @@ class PestanaBiseccion(ttk.Frame):
 
     def _construir_resultado(self):
         """Distribuye el resumen, la gráfica y la tabla dentro del panel de resultados."""
-        # Reserva el espacio superior para la gráfica y el inferior para el procedimiento.
+        # Presenta primero la respuesta, luego la gráfica y el procedimiento.
         marco = ttk.LabelFrame(self, text="Resultado y procedimiento paso a paso",
                                style="Seccion.TLabelframe", padding=12)
         marco.grid(row=0, column=1, sticky="nsew", padx=(7, 0))
         self.marco_resultado = marco
         marco.columnconfigure(0, weight=1)
-        marco.rowconfigure(1, weight=1)
+        marco.rowconfigure(2, weight=1)
         self.barra_grafica = ttk.Frame(marco)
-        self.barra_grafica.grid(row=0, column=0, sticky="ew", pady=(0, 4))
+        self.barra_grafica.grid(row=1, column=0, sticky="ew", pady=(6, 4))
         self.barra_grafica.columnconfigure(0, weight=1)
         self.etiqueta_grafica = ttk.Label(
             self.barra_grafica, text="Gráfica de la función e intersección con el eje x",
@@ -366,16 +373,16 @@ class PestanaBiseccion(ttk.Frame):
         self.canvas_grafica = tk.Canvas(
             marco, height=210, background="white", highlightthickness=0,
         )
-        self.canvas_grafica.grid(row=1, column=0, sticky="ew")
+        self.canvas_grafica.grid(row=2, column=0, sticky="ew")
         self.canvas_grafica.bind("<Configure>", self._redibujar_grafica)
         self.canvas_grafica.bind("<MouseWheel>", self._zoom_rueda)
         self.canvas_grafica.bind("<Button-4>", self._zoom_rueda)
         self.canvas_grafica.bind("<Button-5>", self._zoom_rueda)
         self.resultado_biseccion = None
         self.funcion_grafica = None
-        area, self.txt_resultado = crear_area_resultado(marco, alto=4)
+        area, self.txt_resultado = crear_area_resultado(marco, alto=8, destacado=True)
         self.txt_resultado.configure(width=42)
-        area.grid(row=2, column=0, sticky="nsew", pady=(8, 0))
+        area.grid(row=0, column=0, sticky="nsew")
         self.area_resumen = area
 
         marco.rowconfigure(3, weight=1)
@@ -670,8 +677,8 @@ class PestanaBiseccion(ttk.Frame):
                 row=0, column=1, columnspan=1, sticky="nsew", padx=(7, 0),
             )
             self.marco_resultado.rowconfigure(0, weight=0)
-            self.marco_resultado.rowconfigure(1, weight=1)
-            self.marco_resultado.rowconfigure(2, weight=0)
+            self.marco_resultado.rowconfigure(1, weight=0)
+            self.marco_resultado.rowconfigure(2, weight=1)
             self.marco_resultado.rowconfigure(3, weight=1)
             self.barra_grafica.grid()
             self.canvas_grafica.grid()

@@ -63,7 +63,7 @@ class PestanaEcuaciones(ttk.Frame):
         # El procedimiento puede ser largo, por eso se muestra en un área desplazable.
         marco = ttk.LabelFrame(self, text="Resultado y procedimiento paso a paso", style="Seccion.TLabelframe", padding=12)
         marco.grid(row=0, column=1, sticky="nsew", padx=(7, 0))
-        marco_resultado, self.txt_resultado = crear_area_resultado(marco, alto=24)
+        marco_resultado, self.txt_resultado = crear_area_resultado(marco, alto=24, destacado=True)
         marco_resultado.pack(fill="both", expand=True)
 
     def _accion_resolver(self):
@@ -74,27 +74,34 @@ class PestanaEcuaciones(ttk.Frame):
             solucion, tipo, pivotes, pasos = resolver_sistema_gauss_jordan_con_pasos(a, b)
             escala_solucion = escala_de(solucion)
 
-            salida = "SOLUCIÓN X:\n" + matriz_a_texto(solucion)
+            salida = (
+                "RESPUESTA · SOLUCIÓN ÚNICA\nX =\n" + matriz_a_texto(solucion)
+                if tipo == "unica" else
+                "RESPUESTA · INFINITAS SOLUCIONES\n" + solucion_general_texto(a, b)
+            )
             salida += (
                 "\n\nTipo de solución: única."
                 if tipo == "unica"
                 else (
-                    "\n\nTipo de solución: infinitas soluciones "
-                    "(variables libres = 0 en la solución particular mostrada).\n\n"
-                    "Solución general:\n" + solucion_general_texto(a, b)
+                    "\n\nUna solución particular (variables libres = 0):\nX =\n"
+                    + matriz_a_texto(solucion)
                 )
             )
-            salida += "\nColumnas con pivote: " + (", ".join(str(i + 1) for i in pivotes) or "ninguna")
-
             producto = multiplicar_matrices(a, solucion)
             comprobado = matrices_aproximadamente_iguales(producto, b)
-            pasos.append(
-                "COMPROBACIÓN AUTOMÁTICA. Sustituir la solución X en A·X debe producir B.\n\n"
+            salida += (
+                "\n\nCOMPROBACIÓN\nSustituimos la X mostrada en A·X y comparamos con B.\n\n"
                 "A·X =\n" + matriz_a_texto(producto)
                 + "\n\nB =\n" + matriz_a_texto(b)
                 + ("\n\n✓ La solución comprobada satisface A·X = B." if comprobado else "\n\n✗ La solución no coincide con B.")
             )
-            salida += _bloque(pasos)
+            salida += (
+                "\n\nEXPLICACIÓN PASO A PASO\n"
+                "Usamos Gauss-Jordan: transformamos [A | B] mediante operaciones de fila "
+                "hasta poder leer los valores de X.\n"
+                "Columnas con pivote: " + (", ".join(str(i + 1) for i in pivotes) or "ninguna")
+                + _bloque(pasos)
+            )
             mostrar_texto(self.txt_resultado, salida)
 
             texto_x = "\n".join(
@@ -104,8 +111,11 @@ class PestanaEcuaciones(ttk.Frame):
             self.txt_x.delete("1.0", "end")
             self.txt_x.insert("1.0", texto_x)
         except ErrorSistemaIncompatible as error:
-            mostrar_texto(self.txt_resultado, "RESULTADO: el sistema no tiene solución." + _bloque(error.pasos))
+            mostrar_texto(self.txt_resultado,
+                          "SIN SOLUCIÓN\nEl sistema es incompatible: ninguna X satisface A·X = B."
+                          "\n\nEXPLICACIÓN PASO A PASO" + _bloque(error.pasos))
         except ValueError as error:
+            mostrar_texto(self.txt_resultado, "NO SE PUDO RESOLVER\nRevisa los datos ingresados.\n\n" + str(error))
             mostrar_error(error)
 
     def _accion_evaluar(self):
@@ -160,11 +170,12 @@ class PestanaEcuaciones(ttk.Frame):
                 ),
             ]
             salida = (
-                ("RESULTADO: X SÍ cumple A · X = B." if cumple else "RESULTADO: X NO cumple A · X = B.")
-                + _bloque(pasos)
+                ("RESPUESTA · X SÍ CUMPLE A · X = B." if cumple else "RESPUESTA · X NO CUMPLE A · X = B.")
+                + "\n\nEXPLICACIÓN PASO A PASO" + _bloque(pasos)
             )
             mostrar_texto(self.txt_resultado, salida)
         except ValueError as error:
+            mostrar_texto(self.txt_resultado, "NO SE PUDO COMPROBAR\nRevisa los datos ingresados.\n\n" + str(error))
             mostrar_error(error)
 
     def _limpiar(self):

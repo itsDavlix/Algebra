@@ -124,31 +124,60 @@ def resolver_metodo_abierto(ecuacion, metodo, x0, x1=None, derivada="",
 
 
 def formatear_resultado_abierto(resultado):
-    """Muestra la fórmula, la comprobación y el procedimiento de cada paso."""
+    """Presenta primero la respuesta y después justifica cada aproximación."""
     n = lambda valor: f"{valor:.10g}"
     estado = "Convergencia alcanzada" if resultado.convergio else "Aproximación sin convergencia"
     error = "no disponible" if resultado.error is None else n(resultado.error)
     lineas = [
-        resultado.metodo.upper(), "", f"{estado}: x ≈ {n(resultado.raiz)}",
-        f"Comprobación: f(x) = {n(resultado.valor_funcion)}",
-        f"Error aproximado |x_nuevo − x_actual|: {error}",
+        "RESPUESTA · RAÍZ APROXIMADA" if resultado.convergio else "SIN CONVERGENCIA · ÚLTIMA APROXIMACIÓN",
+        f"x ≈ {n(resultado.raiz)}",
+        f"{estado} · Método: {resultado.metodo}",
+        "", "COMPROBACIÓN",
+        f"Al sustituir x ≈ {n(resultado.raiz)} en la función:",
+        f"f(x) = {n(resultado.valor_funcion)}",
+        f"Residuo |f(x)| = {n(abs(resultado.valor_funcion))}",
+        "El residuo mide cuánto falta para que la ecuación valga cero; no es el error en x.",
+        "", "EXPLICACIÓN · CRITERIO DE PARADA",
+        f"Iteraciones: {len(resultado.iteraciones)}",
+        f"Último cambio |x_nuevo − x_actual|: {error}",
         f"Tolerancia absoluta (paso y residuo): {n(resultado.tolerancia)}",
-        f"Iteraciones: {len(resultado.iteraciones)}", f"Motivo: {resultado.motivo}",
-        "", f"f(x) = {resultado.expresion}",
-        "El error aproximado no es una cota del error real en la raíz.", "",
+        f"Motivo: {resultado.motivo}",
+        "Se detiene con éxito si f(x) vale cero en la precisión de cálculo, o si tanto el cambio "
+        "en x como el residuo cumplen la tolerancia.",
+        "El cambio entre aproximaciones no es una cota del error real en la raíz.",
+        "", "DATOS DEL EJERCICIO", f"Método: {resultado.metodo}",
+        f"Resolver f(x) = 0, donde f(x) = {resultado.expresion}",
+        "", "FÓRMULA DEL MÉTODO",
         ("Newton: x_nuevo = x_actual − f(x_actual)/f'(x_actual)"
          if resultado.metodo == "Newton-Raphson" else
          "Secante: x_nuevo = x_actual − f(x_actual)(x_actual−x_anterior)"
          "/(f(x_actual)−f(x_anterior))"),
+        ("Evaluamos la función y su derivada en el valor actual para obtener la siguiente aproximación."
+         if resultado.metodo == "Newton-Raphson" else
+         "Unimos los dos puntos anteriores con una recta; su corte con el eje x da la siguiente aproximación."),
+        "", "EXPLICACIÓN PASO A PASO",
     ]
+    if not resultado.convergio:
+        lineas.insert(3, "Este valor todavía no se acepta como raíz.")
+    if not resultado.iteraciones:
+        lineas.append("No se realizaron iteraciones. " + resultado.motivo)
     for paso in resultado.iteraciones:
         lineas.extend(["", f"ITERACIÓN {paso.numero}"])
         if paso.anterior is not None and resultado.metodo == "Secante":
-            lineas.append(f"x_anterior = {n(paso.anterior)}")
+            lineas.append(f"Tomamos x_anterior = {n(paso.anterior)} y x_actual = {n(paso.actual)}.")
+        else:
+            lineas.append(f"Partimos de x_actual = {n(paso.actual)}.")
+        pendiente = "Derivada f'(x_actual)" if resultado.metodo == "Newton-Raphson" else "Pendiente de la recta secante"
         lineas.extend([
-            f"x_actual = {n(paso.actual)}; f(x_actual) = {n(paso.valor_actual)}",
-            f"Pendiente = {n(paso.pendiente)}",
-            f"x_nuevo = {n(paso.siguiente)}; f(x_nuevo) = {n(paso.valor_siguiente)}",
-            f"Error aproximado = {n(paso.error)}",
+            f"1. Evaluamos: f({n(paso.actual)}) = {n(paso.valor_actual)}.",
+            f"   {pendiente} = {n(paso.pendiente)}.",
+            "2. Sustituimos en x_nuevo = x_actual − f(x_actual)/pendiente:",
+            f"   x_nuevo ≈ ({n(paso.actual)}) − ({n(paso.valor_actual)})/({n(paso.pendiente)})",
+            f"   x_nuevo ≈ {n(paso.siguiente)}",
+            f"3. Comprobamos: f(x_nuevo) = {n(paso.valor_siguiente)}.",
+            f"   Cambio absoluto = |({n(paso.siguiente)}) − ({n(paso.actual)})| ≈ {n(paso.error)}.",
+            ("4. Parada: " + resultado.motivo if paso.numero == len(resultado.iteraciones)
+             else "4. Continuamos: todavía no se cumplen los criterios de parada."),
         ])
+    lineas.extend(["", "Los valores mostrados están redondeados; los cálculos conservan la precisión de coma flotante."])
     return "\n".join(lineas)

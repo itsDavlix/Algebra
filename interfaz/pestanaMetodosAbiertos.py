@@ -59,8 +59,11 @@ class PestanaMetodosAbiertos(ttk.Frame):
         botones.pack(fill="x", pady=(6, 0))
         ttk.Button(botones, text="Cargar ejemplo", command=self._cargar_ejemplo).pack(side="left")
         ttk.Button(botones, text="Limpiar", command=self._limpiar).pack(side="left", padx=6)
-        area, self.txt_resultado = crear_area_resultado(self, alto=20)
-        area.grid(row=0, column=1, sticky="nsew")
+        salida = ttk.LabelFrame(self, text="Respuesta y explicación", padding=12,
+                                style="Seccion.TLabelframe")
+        salida.grid(row=0, column=1, sticky="nsew")
+        area, self.txt_resultado = crear_area_resultado(salida, alto=20, destacado=True)
+        area.pack(fill="both", expand=True)
         self._cargar_ejemplo()
 
     def _seleccionar_metodo(self, _evento=None):
@@ -88,7 +91,7 @@ class PestanaMetodosAbiertos(ttk.Frame):
             mostrar_texto(self.txt_resultado, formatear_resultado_abierto(self.resultado))
         except ValueError as error:
             self.resultado = None
-            mostrar_texto(self.txt_resultado, "No se pudo resolver la ecuación.\n\n" + str(error))
+            mostrar_texto(self.txt_resultado, "NO SE PUDO RESOLVER\nNo se pudo resolver la ecuación.\n\n" + str(error))
             mostrar_error(error)
 
     def _cargar_ejemplo(self):

@@ -20,7 +20,7 @@ class PestanaReglaFalsa(PestanaBiseccion):
 
     def __init__(self, padre):
         super().__init__(padre)
-        self.txt_resultado.configure(height=7)
+        self.txt_resultado.configure(height=8)
         self.marco_entrada.configure(text="Resolver f(x) = 0 por Regula Falsi")
         self.tabla_iteraciones.heading("c", text="Falsa posición")
         self.tabla_iteraciones.heading("error", text="Error aprox.")
@@ -58,12 +58,18 @@ class PestanaReglaFalsa(PestanaBiseccion):
         estado = "convergencia alcanzada" if resultado.convergio else "aproximación sin convergencia"
         error = _numero_regla_falsa(resultado.error)
         lineas = [
-            f"{estado}: x ≈ {_numero_tabla(resultado.raiz)}",
-            f"f(x) = {_numero_tabla(resultado.valor_funcion)}",
+            "RESPUESTA · RAÍZ APROXIMADA" if resultado.convergio else "SIN CONVERGENCIA · ÚLTIMA APROXIMACIÓN",
+            f"x ≈ {_numero_tabla(resultado.raiz)}",
+            f"Estado: {estado}", "", "COMPROBACIÓN",
+            f"Al sustituir la aproximación: f(x) = {_numero_tabla(resultado.valor_funcion)}",
             f"Error estimado |c − c anterior|: {error}",
-            f"Tolerancia: {_numero_tabla(resultado.tolerancia)}    "
+            f"Tolerancia: {_numero_tabla(resultado.tolerancia)}",
+            "", "EXPLICACIÓN · REGULA FALSI",
             f"Iteraciones: {len(resultado.iteraciones)}",
             f"Motivo: {resultado.motivo}",
+            "Unimos los extremos con una recta y usamos su corte con el eje x como aproximación. "
+            "Después conservamos el intervalo con cambio de signo.",
+            "Expande las iteraciones de la tabla inferior para ver las operaciones y decisiones.",
         ]
         aviso = nota_estancamiento(resultado)
         if aviso:
