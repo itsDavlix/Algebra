@@ -3,8 +3,12 @@
 from dataclasses import dataclass
 from typing import Optional
 
-from nucleo.biseccion import MAX_ITERACIONES, _numero, preparar_funcion
+from nucleo.biseccion import MAX_ITERACIONES, _numero
+from nucleo.expresiones import analizar, derivada_numerica
 from nucleo.numeros import asegurar_finito
+
+# Una aproximación cuya magnitud supera este límite se considera divergente.
+LIMITE_DIVERGENCIA = 1e12
 
 
 METODOS_ABIERTOS = ("Newton-Raphson", "Secante")
@@ -20,6 +24,7 @@ class IteracionAbierta:
     siguiente: float
     valor_siguiente: float
     error: float
+    error_relativo: Optional[float] = None
 
 
 @dataclass(frozen=True)
@@ -33,6 +38,10 @@ class ResultadoAbierto:
     iteraciones: tuple
     convergio: bool
     motivo: str
+    derivada: str = ""
+    derivada_automatica: bool = False
+    advertencia: str = ""
+    iniciales: tuple = ()
 
 
 def resolver_metodo_abierto(ecuacion, metodo, x0, x1=None, derivada="",
@@ -51,16 +60,30 @@ def resolver_metodo_abierto(ecuacion, metodo, x0, x1=None, derivada="",
         raise ValueError("La tolerancia debe ser mayor que cero.")
     if type(max_iteraciones) is not int or not 1 <= max_iteraciones <= MAX_ITERACIONES:
         raise ValueError(f"El máximo de iteraciones debe ser un entero entre 1 y {MAX_ITERACIONES}.")
-    funcion, expresion = preparar_funcion(ecuacion)
+    funcion = analizar(ecuacion)
+    expresion = funcion.texto
     funcion_derivada = None
+    texto_derivada = ""
+    automatica = False
+    advertencia = ""
     if metodo == "Newton-Raphson":
-        if not isinstance(derivada, str) or not derivada.strip():
-            raise ValueError("Escribe la derivada f'(x) para Newton-Raphson.")
-        funcion_derivada, _ = preparar_funcion(derivada)
+        if derivada is not None and not isinstance(derivada, str):
+            raise ValueError("La derivada debe escribirse como texto, por ejemplo 3x^2 - 1.")
+        if derivada and derivada.strip():
+            funcion_derivada = analizar(derivada)
+        else:
+            # Derivada simbólica con las reglas del cálculo (nucleo.expresiones).
+            funcion_derivada = funcion.derivada()
+            automatica = True
+        texto_derivada = funcion_derivada.texto
+        if not automatica:
+            advertencia = _comprobar_derivada(funcion, funcion_derivada, x0)
+        iniciales = (x0,)
     else:
         x1 = asegurar_finito(x1, "El valor inicial x1")
         if x0 == x1:
             raise ValueError("Secante requiere valores iniciales x0 y x1 distintos.")
+        iniciales = (x0, x1)
 
     pasos = []
     error = None
@@ -68,6 +91,7 @@ def resolver_metodo_abierto(ecuacion, metodo, x0, x1=None, derivada="",
     def resultado(x, fx, convergio, motivo):
         return ResultadoAbierto(
             metodo, expresion, tolerancia, x, fx, error, tuple(pasos), convergio, motivo,
+            texto_derivada, automatica, advertencia, iniciales,
         )
 
     actual, valor_actual = x0, funcion(x0)
@@ -105,8 +129,10 @@ def resolver_metodo_abierto(ecuacion, metodo, x0, x1=None, derivada="",
         siguiente = asegurar_finito(actual - desplazamiento, "La siguiente aproximación")
         valor_siguiente = funcion(siguiente)
         error = asegurar_finito(abs(siguiente - actual), "El error aproximado")
+        error_relativo = None if siguiente == 0 else error / abs(siguiente) * 100
         pasos.append(IteracionAbierta(
-            numero, anterior, actual, valor_actual, pendiente, siguiente, valor_siguiente, error,
+            numero, anterior, actual, valor_actual, pendiente, siguiente, valor_siguiente,
+            error, error_relativo,
         ))
         if valor_siguiente == 0:
             return resultado(siguiente, valor_siguiente, True, "f(x) = 0 en la precisión de cálculo.")
@@ -116,11 +142,53 @@ def resolver_metodo_abierto(ecuacion, metodo, x0, x1=None, derivada="",
         if siguiente == actual:
             return resultado(siguiente, valor_siguiente, False,
                              "La aproximación se estancó sin cumplir la tolerancia del residuo.")
+        if abs(siguiente) > LIMITE_DIVERGENCIA * max(1.0, abs(x0)):
+            return resultado(siguiente, valor_siguiente, False,
+                             "Las aproximaciones crecen sin control: el método diverge desde "
+                             "este valor inicial. Elige otro más cercano a la raíz.")
+        desplazamiento = 1 if metodo == "Secante" else 0
+        repetida = _iteracion_repetida(pasos, tolerancia)
+        if repetida is not None:
+            return resultado(siguiente, valor_siguiente, False,
+                             f"Ciclo detectado: x{numero + desplazamiento} repite a "
+                             f"x{repetida + desplazamiento} y el método "
+                             "oscila sin acercarse a una raíz. Elige otro valor inicial.")
         anterior, valor_anterior = actual, valor_actual
         actual, valor_actual = siguiente, valor_siguiente
 
     return resultado(actual, valor_actual, False,
                      "Se alcanzó el máximo de iteraciones sin cumplir la tolerancia.")
+
+
+def _comprobar_derivada(funcion, derivada, x0):
+    """Compara la derivada escrita con una diferencia centrada en x0."""
+    try:
+        escrita = derivada(x0)
+        estimada = derivada_numerica(funcion, x0)
+    except ValueError:
+        return ""
+    escala = max(1.0, abs(estimada))
+    if abs(escrita - estimada) > 1e-4 * escala:
+        return (f"La derivada escrita vale {escrita:.6g} en x0, pero la pendiente estimada de f "
+                f"es {estimada:.6g}. Revisa f'(x) o deja el campo vacío para calcularla "
+                "automáticamente.")
+    return ""
+
+
+def _iteracion_repetida(pasos, tolerancia):
+    """Devuelve el índice de una aproximación anterior que vuelve a aparecer.
+
+    Solo compara con puntos que no son el inmediato anterior: si el método
+    converge, el último paso ya habría cumplido la tolerancia.
+    """
+    if len(pasos) < 2:
+        return None
+    ultimo = pasos[-1].siguiente
+    candidatos = [(0, pasos[0].actual)] + [(p.numero, p.siguiente) for p in pasos[:-2]]
+    for indice, valor in candidatos:
+        if abs(ultimo - valor) <= max(tolerancia, 1e-12 * abs(valor)) and abs(pasos[-1].valor_siguiente) > tolerancia:
+            return indice
+    return None
 
 
 def formatear_resultado_abierto(resultado):

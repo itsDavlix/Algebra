@@ -2,7 +2,7 @@
 
 import math
 import unittest
-from unittest.mock import Mock, patch
+
 
 from nucleo.biseccion import resolver_biseccion
 from nucleo.metodosabiertos import resolver_metodo_abierto
@@ -78,17 +78,10 @@ class RevisionMatematica(unittest.TestCase):
     def test_matriz_mostrada_conserva_componentes_de_distinta_escala(self):
         self.assertEqual(matriz_a_texto([[1e12], [1]]).splitlines()[1], "[ 1 ]")
 
-    @patch("interfaz.pestanaEcuaciones.mostrar_texto")
-    def test_solucion_copiada_conserva_precision(self, mostrar):
-        from interfaz.pestanaEcuaciones import PestanaEcuaciones
-        p = PestanaEcuaciones.__new__(PestanaEcuaciones)
-        p.txt_a, p.txt_b, p.txt_x, p.txt_resultado = Mock(), Mock(), Mock(), Mock()
-        p.txt_a.get.return_value = "3"
-        p.txt_b.get.return_value = "1"
-        p._accion_resolver()
-        x = float(p.txt_x.insert.call_args.args[1])
-        self.assertLess(abs(3*x - 1), 1e-14)
-
+    def test_solucion_directa_conserva_precision(self):
+        from nucleo.procedimientos_sistemas import resolver_directo
+        resultado = resolver_directo([[3.0]], [1.0], ["x"])
+        self.assertLess(abs(3 * resultado.solucion[0] - 1), 1e-14)
 
 if __name__ == "__main__":
     unittest.main()

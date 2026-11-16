@@ -4,3 +4,9 @@ __pycache__/
 Thumbs.db
 .venv/
 venv/
+
+# Archivos de parches y diffs temporales
+*.patch
+*.diff
+*.orig
+*.rej

@@ -206,7 +206,7 @@ def formatear_resultado_reglafalsa(resultado):
         "",
         "PROCEDIMIENTO PASO A PASO",
         "1. Evaluar f(a) y f(b), comprobar el cambio de signo y la continuidad.",
-        "2. Unir (a,f(a)) y (b,f(b)); calcular el corte c de esa secante con x.",
+        "2. Unir (a,f(a)) y (b,f(b)); su corte con el eje x es c = b − f(b)(b − a)/(f(b) − f(a)).",
         "3. Evaluar f(c); reemplazar el extremo que conserva el cambio de signo.",
         "4. Repetir hasta que f(c)=0, el paso y el residuo cumplan la tolerancia "
         "o se alcance un límite.",
@@ -229,9 +229,10 @@ def formatear_resultado_reglafalsa(resultado):
             f"ITERACIÓN {paso.numero}",
             f"a = {n(paso.a)}; b = {n(paso.b)}",
             f"f(a) = {n(paso.fa)}; f(b) = {n(paso.fb)}",
-            f"escala = max(|f(a)|, |f(b)|); t = (f(a)/escala) / "
-            "((f(a)/escala) - (f(b)/escala))",
-            f"c = a + t(b-a) = {n(paso.c)}",
+            "c = b − f(b)·(b − a) / (f(b) − f(a))",
+            f"  = {n(paso.b)} − ({n(paso.fb)})·({n(paso.b)} − ({n(paso.a)})) / "
+            f"(({n(paso.fb)}) − ({n(paso.fa)}))",
+            f"  = {n(paso.c)}",
             f"f(c) = {n(paso.fc)}",
             "Error estimado |c_nuevo - c_anterior| = "
             + ("no disponible" if paso.error is None else n(paso.error)),

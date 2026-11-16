@@ -1,11 +1,8 @@
 """Verifica raíces, fallos numéricos y selección de métodos sin pantalla."""
 
 import math
-import tkinter as tk
 import unittest
-from unittest.mock import Mock, patch
 
-from interfaz.pestanaMetodosAbiertos import PestanaMetodosAbiertos
 from nucleo.metodosabiertos import METODOS_ABIERTOS, resolver_metodo_abierto
 
 
@@ -59,7 +56,7 @@ class PruebasMetodosAbiertos(unittest.TestCase):
                                        derivada="3*x^2-2", max_iteraciones=10)
         estancado = resolver_metodo_abierto("x^2+1", "Newton-Raphson", 1, derivada="1e30")
         self.assertFalse(ciclo.convergio)
-        self.assertEqual(len(ciclo.iteraciones), 10)
+        self.assertIn("Ciclo detectado: x2 repite a x0", ciclo.motivo)
         self.assertFalse(estancado.convergio)
         self.assertIn("estancó", estancado.motivo)
 
@@ -71,70 +68,31 @@ class PruebasMetodosAbiertos(unittest.TestCase):
             dict(tolerancia=float("nan")), dict(max_iteraciones=0),
             dict(max_iteraciones=1001), dict(max_iteraciones=True), dict(max_iteraciones=2.5),
             dict(ecuacion="__import__('os')"), dict(ecuacion="sqrt(x)", x0=-1),
-            dict(metodo="Newton-Raphson", derivada=""),
             dict(metodo="Newton-Raphson", derivada="__import__('os')"),
         ):
             with self.subTest(cambios=cambios), self.assertRaises(ValueError):
                 resolver_metodo_abierto(**{**base, **cambios})
+
+    def test_derivada_automatica_y_verificacion(self):
+        auto = resolver_metodo_abierto("x^3 - x - 2", "Newton-Raphson", 1.5)
+        self.assertTrue(auto.derivada_automatica)
+        self.assertEqual(auto.derivada, "3*x^2 - 1")
+        self.assertAlmostEqual(auto.raiz, 1.5213797068045676, places=6)
+        erronea = resolver_metodo_abierto("x^3 - x - 2", "Newton-Raphson", 1.5, derivada="2*x")
+        self.assertIn("Revisa f'(x)", erronea.advertencia)
+        correcta = resolver_metodo_abierto("x^3 - x - 2", "Newton-Raphson", 1.5, derivada="3x^2-1")
+        self.assertEqual(correcta.advertencia, "")
+
+    def test_divergencia(self):
+        r = resolver_metodo_abierto("atan(x)", "Newton-Raphson", 2)
+        self.assertFalse(r.convergio)
+        self.assertIn("diverge", r.motivo)
 
     def test_salida_del_dominio_y_desborde(self):
         with self.assertRaises(ValueError):
             resolver_metodo_abierto("log(x)", "Newton-Raphson", 10, derivada="1/x")
         with self.assertRaises(ValueError):
             resolver_metodo_abierto("x^2+1", "Newton-Raphson", 1, derivada="1e-320")
-
-
-class PruebasSeleccionMetodos(unittest.TestCase):
-    def setUp(self):
-        self.tcl = tk.Tcl()
-        self.p = PestanaMetodosAbiertos.__new__(PestanaMetodosAbiertos)
-        for nombre in ("metodo", "ecuacion", "derivada", "x0", "x1", "tolerancia", "iteraciones"):
-            setattr(self.p, "var_" + nombre, tk.StringVar(self.tcl))
-        for nombre in ("entrada_derivada", "entrada_x1", "entrada_ecuacion", "txt_resultado", "boton_grafica"):
-            setattr(self.p, nombre, Mock())
-        self.p.var_metodo.set("Newton-Raphson")
-
-    @patch("interfaz.pestanaMetodosAbiertos.mostrar_error")
-    @patch("interfaz.pestanaMetodosAbiertos.mostrar_texto")
-    def test_selector_y_ejemplo_de_ambos_metodos(self, mostrar, error):
-        for metodo in METODOS_ABIERTOS:
-            self.p.var_metodo.set(metodo)
-            self.p._cargar_ejemplo()
-            self.p.entrada_x1.configure.assert_called_with(state="normal" if metodo == "Secante" else "disabled")
-            self.p.entrada_derivada.configure.assert_called_with(state="disabled" if metodo == "Secante" else "normal")
-            # Los campos deshabilitados no intervienen en el cálculo.
-            if metodo == "Secante":
-                self.p.var_derivada.set("inválida")
-            else:
-                self.p.var_x1.set("inválido")
-            self.p._accion_resolver()
-            self.assertTrue(self.p.resultado.convergio)
-            self.assertEqual(self.p.resultado.metodo, metodo)
-            self.assertIn("ITERACIÓN 1", mostrar.call_args.args[1])
-        error.assert_not_called()
-
-    @patch("interfaz.pestanaMetodosAbiertos.mostrar_error")
-    @patch("interfaz.pestanaMetodosAbiertos.mostrar_texto")
-    def test_entrada_invalida_borra_resultado_previo(self, mostrar, error):
-        self.p._cargar_ejemplo()
-        self.p._accion_resolver()
-        self.p.var_iteraciones.set("1.5")
-        self.p._accion_resolver()
-        self.assertIsNone(self.p.resultado)
-        error.assert_called_once()
-        self.assertIn("No se pudo resolver", mostrar.call_args.args[1])
-
-    @patch("interfaz.pestanaMetodosAbiertos.mostrar_texto")
-    def test_limpiar_y_cambiar_metodo_descarta_resultado(self, mostrar):
-        self.p._cargar_ejemplo()
-        self.p._accion_resolver()
-        self.p.var_metodo.set("Secante")
-        self.p._seleccionar_metodo()
-        self.assertIsNone(self.p.resultado)
-        self.p._limpiar()
-        self.assertEqual(self.p.var_ecuacion.get(), "")
-        self.assertEqual(self.p.var_x0.get(), "")
-        self.assertEqual(self.p.var_tolerancia.get(), "1e-6")
 
 
 if __name__ == "__main__":

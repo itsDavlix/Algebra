@@ -2,6 +2,8 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 
+from interfaz.estilos import PALETA, fuente as tipografia
+
 
 # Actualiza áreas de salida que pueden estar bloqueadas para edición.
 def mostrar_texto(caja, texto):
@@ -52,13 +54,15 @@ def crear_area_resultado(padre, alto=10, fuente=("TkFixedFont", 11), destacado=F
     if destacado:
         texto.resultado_destacado = True
         texto.configure(padx=12, pady=10, spacing1=2, spacing3=4, relief="flat")
-        texto.tag_configure("respuesta", font=("TkFixedFont", 12, "bold"),
-                            background="#F0ECF8", foreground="#51417D")
-        texto.tag_configure("advertencia", font=("TkFixedFont", 11, "bold"),
-                            background="#FEF2F2", foreground="#B91C1C")
-        texto.tag_configure("valor_raiz", font=("TkFixedFont", 16, "bold"))
-        texto.tag_configure("seccion", font=("TkDefaultFont", 11, "bold"),
+        texto.tag_configure("respuesta", font=tipografia(12, "bold", mono=True),
+                            background=PALETA["acento_suave"], foreground=PALETA["texto"])
+        texto.tag_configure("advertencia", font=tipografia(11, "bold", mono=True),
+                            background=PALETA["error_suave"], foreground=PALETA["error"])
+        texto.tag_configure("valor_raiz", font=tipografia(16, "bold", mono=True))
+        texto.tag_configure("seccion", font=tipografia(11, "bold"), foreground=PALETA["acento_hover"],
                             spacing1=12, spacing3=6)
+    texto.configure(background=PALETA["campo"], foreground=PALETA["texto"],
+                    highlightbackground=PALETA["borde"], highlightcolor=PALETA["acento"])
     barra = ttk.Scrollbar(marco, orient="vertical", command=texto.yview)
     texto.configure(yscrollcommand=barra.set)
     texto.grid(row=0, column=0, sticky="nsew")
@@ -84,10 +88,11 @@ class AyudaEmergente:
         self.ventana = tk.Toplevel(self.widget)
         self.ventana.wm_overrideredirect(True)
         self.ventana.wm_geometry(f"+{x}+{y}")
-        ttk.Label(
-            self.ventana, text=self.texto, justify="left", padding=(6, 3),
-            background="#fffbdd", relief="solid", borderwidth=1,
-        ).pack()
+        self.ventana.configure(background=PALETA["borde_fuerte"])
+        tk.Label(
+            self.ventana, text=self.texto, justify="left", padx=8, pady=4,
+            background=PALETA["tarjeta"], foreground=PALETA["texto"], font=tipografia(9),
+        ).pack(padx=1, pady=1)
 
     def _ocultar(self, _evento=None):
         if self.ventana:

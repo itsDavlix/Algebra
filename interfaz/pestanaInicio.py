@@ -3,6 +3,7 @@
 from tkinter import ttk
 
 from interfaz.ayudas import crear_area_resultado, mostrar_texto
+from interfaz.estilos import PALETA, fuente
 
 
 class PestanaInicio(ttk.Frame):
@@ -18,58 +19,46 @@ class PestanaInicio(ttk.Frame):
         marco.pack(fill="both", expand=True)
 
         texto = (
-            "Elige una pestaña, ingresa los datos y pulsa la operación que necesitas. "
-            "En las ecuaciones, la respuesta aparece destacada al inicio; debajo encontrarás "
-            "la comprobación y las explicaciones paso a paso.\n\n"
-            "FUNCIONES DISPONIBLES\n"
-            "• Vectores: suma, resta, multiplicación por escalar, producto punto, producto cruz "
-            "en R³, norma, combinación lineal e independencia lineal.\n\n"
-            "• Matrices: suma, resta, multiplicación por escalar y entre matrices, inversa, "
-            "transpuesta, rango y determinantes por cofactores o LU con pivoteo parcial.\n\n"
-            "• Ecuaciones A·X = B: resolución por Gauss-Jordan, identificación de solución única, "
-            "infinitas soluciones o sistema incompatible, y comprobación de una X propuesta. "
-            "Si hay infinitas soluciones, se muestra su forma paramétrica.\n\n"
-            "• Bisección: búsqueda de raíces dividiendo un intervalo con cambio de signo. "
-            "Al resolver se proponen automáticamente el intervalo, la tolerancia y las iteraciones.\n\n"
-            "• Regula Falsi: búsqueda de raíces por falsa posición, con parámetros automáticos "
-            "y avisos de estancamiento. Junto con Bisección, ofrece gráfica, zoom al ampliarla "
-            "y una tabla de iteraciones desplegables. Ambos métodos requieren continuidad en el intervalo.\n\n"
-            "• Métodos abiertos: elige Newton-Raphson o Secante. Newton-Raphson necesita "
-            "un valor inicial x0 y la derivada f'(x); Secante necesita dos valores distintos, x0 y x1. "
-            "Puedes ajustar la tolerancia y el máximo de iteraciones. "
-            "La salida explica las sustituciones numéricas y el motivo de parada. "
-            "Después de resolver, pulsa Graficar y ver puntos para explorar la curva, las tangentes o secantes, "
-            "las coordenadas y una explicación de cada iteración. Estos métodos pueden no converger.\n\n"
-            "• Números romanos: suma, resta, multiplicación y división exacta con números romanos estándar.\n\n"
-            "• Programa anterior: selecciona y ejecuta un archivo .py elaborado previamente.\n\n"
-            "CÓMO INGRESAR LOS DATOS\n"
-            "• Vectores: separa los componentes con espacios o comas, por ejemplo 1 2 3 o 1, 2, 3. "
-            "Para un conjunto de generadores, escribe un vector por línea.\n\n"
-            "• Matrices: en la pestaña Matrices, escribe cada elemento en su casilla y ajusta las filas "
-            "y columnas con los controles. En Ecuaciones A·X = B, escribe una fila por línea y "
-            "separa sus elementos con espacios.\n\n"
-            "• Ecuaciones en x: escribe una expresión, como x^3 - 2*x - 5, o una igualdad, como x^2 = 2. "
-            "Usa * para multiplicar, ^ o ** para potencias y punto decimal. "
-            "Se admiten funciones como sin, cos, sqrt, exp y log, además de pi y e; los ángulos van en radianes.\n\n"
-            "• Derivada para Newton-Raphson: deriva la función igualada a cero. "
-            "Por ejemplo, para x^3 - 2*x - 5 = 0, escribe 3*x^2 - 2 y prueba con x0 = 2. "
-            "Para g(x) = h(x), introduce la derivada de g(x) − h(x).\n\n"
-            "• Números romanos: usa formas como IV, XIV, XL o MCMXC.\n\n"
-            "HERRAMIENTAS Y RESULTADOS\n"
-            "• Mostrar símbolos abre una paleta para insertar operadores, funciones y constantes "
-            "en el campo seleccionado.\n"
-            "• Activar modo oscuro cambia la apariencia de la aplicación y sus gráficas.\n"
-            "• En las pestañas de raíces, Cargar ejemplo prepara un ejercicio y Limpiar permite empezar de nuevo.\n"
-            "• Revisa el estado de convergencia y el motivo de parada: una última aproximación "
-            "sin convergencia no se presenta como una raíz confirmada.\n\n"
-            "El programa usa únicamente Python estándar, sin bibliotecas externas."
+            "Elige una herramienta en el menú lateral, escribe los datos y pulsa la operación. "
+            "Los resultados muestran primero la respuesta y debajo el procedimiento.\n\n"
+            "ÁLGEBRA LINEAL\n"
+            "• Vectores: suma, resta, escalar, producto punto, producto cruz en R³, norma, "
+            "combinación lineal e independencia lineal, con pasos y comprobaciones.\n"
+            "• Matrices: det(A) por cofactores o LU (comprobado con el otro método), A⁻¹ justificada con "
+            "det(A) ≠ 0 y verificada con A·A⁻¹ = I, transpuesta, rango y operaciones entre matrices. "
+            "Las entradas aceptan fracciones como 1/3 y se pueden mostrar fracciones exactas.\n"
+            "• Sistemas lineales: escribe las ecuaciones tal cual (−3x − y + 4z + 5w = −6). Gauss-Jordan "
+            "(directo) o Jacobi y Gauss-Seidel (iterativos) con análisis de det(A), dominancia diagonal y "
+            "radio espectral ρ(T), reordenamiento de ecuaciones y gráfica de convergencia.\n\n"
+            "RAÍCES DE ECUACIONES\n"
+            "• Escribe f(x) y la gráfica aparece al instante con sus raíces, máximos, mínimos, "
+            "inflexiones y el corte con el eje y.\n"
+            "• «Ejercicios ▾» carga los ejercicios del banco y de la clase, ordenados por dificultad y con "
+            "el método recomendado y su justificación.\n"
+            "• Elige una raíz y pulsa «Sugerir valores»: el intervalo o los valores iniciales se "
+            "obtienen de la propia función y se explica por qué sirven (Bolzano, Fourier).\n"
+            "• Antes de resolver se validan las condiciones del método. Después, la tabla de "
+            "iteraciones se recorre por páginas y cada fila muestra su desarrollo con los valores "
+            "sustituidos y se resalta en la gráfica.\n"
+            "• Newton-Raphson calcula la derivada automáticamente; si escribes una, se comprueba.\n"
+            "• Plano: rueda para acercar (Shift: solo x; Ctrl o ⌘: solo y), arrastra para moverte, "
+            "doble clic para volver a la vista estándar y ⤢ para expandir.\n\n"
+            "CÓMO ESCRIBIR\n"
+            "• Funciones: 2x, 3(x+1), sin x, x², √x, e^(-x), ln(x), log(x, 2), raiz(x, 3), |x| con abs(x). "
+            "Igualdades como cos x = x se resuelven como cos x − x = 0. Los ángulos van en radianes.\n"
+            "• Al escribir letras aparecen sugerencias (Tab o Enter completa). Atajos: Ctrl o ⌘ + R √, "
+            "L ln, E exp, P π, S sin, K cos, T tan, B |x|, 6 potencia.\n"
+            "• Por tramos: si(x < 0, -x, x).\n"
+            "• Valores numéricos: admiten 2,5 · pi/2 · sqrt(2) · 1e-6.\n"
+            "• Vectores: separa con espacios o comas. Matrices: un valor por casilla.\n\n"
+            "Todo el cálculo usa únicamente la biblioteca estándar de Python."
         )
-        area, guia = crear_area_resultado(marco, alto=24, fuente=("TkDefaultFont", 11))
+        area, guia = crear_area_resultado(marco, alto=24, fuente=fuente(11))
         area.pack(fill="both", expand=True)
         guia.configure(padx=10, pady=8, spacing3=4, relief="flat")
         mostrar_texto(guia, texto)
-        guia.tag_configure("titulo_guia", font=("TkDefaultFont", 12, "bold"),
+        guia.tag_configure("titulo_guia", font=fuente(12, "bold"), foreground=PALETA["acento_hover"],
                            spacing1=10, spacing3=8)
         for numero, linea in enumerate(texto.splitlines(), 1):
-            if linea in ("FUNCIONES DISPONIBLES", "CÓMO INGRESAR LOS DATOS", "HERRAMIENTAS Y RESULTADOS"):
+            if linea in ("ÁLGEBRA LINEAL", "RAÍCES DE ECUACIONES", "CÓMO ESCRIBIR"):
                 guia.tag_add("titulo_guia", f"{numero}.0", f"{numero}.end")

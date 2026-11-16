@@ -155,7 +155,7 @@ class PruebasExpresiones(unittest.TestCase):
 
     def test_sintaxis_y_codigo_no_permitido(self):
         entradas = (
-            "", "  ", "x +", "2x", "x =", "= 0", "x = 1 = 2", "x == 2",
+            "", "  ", "x +", "2x)", "x =", "= 0", "x = 1 = 2", "x == 2",
             "y+1", "math.sin(x)", "__import__('os')", "x.__class__", "[x][0]",
             "(lambda: 1)()", "[x for x in range(3)]", "True", "'x'", "x < 0",
             "sqrt(x, 2)", "sin(x=1)", "1e309", "10j", "x % 2", "x // 2",

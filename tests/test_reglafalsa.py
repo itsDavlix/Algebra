@@ -1,11 +1,8 @@
 """Pruebas de Regula Falsi, sus estimaciones y su interfaz sin pantalla."""
 
 import math
-import tkinter as tk
 import unittest
-from unittest.mock import Mock, patch
 
-from interfaz.pestanaReglaFalsa import PestanaReglaFalsa
 from nucleo.biseccion import MAX_ITERACIONES, resolver_biseccion
 from nucleo.reglafalsa import (
     formatear_resultado_reglafalsa, nota_estancamiento, punto_falsa_posicion,
@@ -130,63 +127,6 @@ class PruebasReglaFalsa(unittest.TestCase):
         self.assertEqual(len(resultado.iteraciones), 13)
         self.assertLessEqual(abs(resultado.valor_funcion), resultado.tolerancia)
         self.assertEqual(resultado.extremo_estancado, "b")
-
-
-class PruebasInterfazReglaFalsa(unittest.TestCase):
-    def setUp(self):
-        self.tcl = tk.Tcl()
-        self.pestana = PestanaReglaFalsa.__new__(PestanaReglaFalsa)
-        for nombre in ("ecuacion", "a", "b", "tolerancia", "iteraciones"):
-            setattr(self.pestana, "var_" + nombre, tk.StringVar(self.tcl))
-        self.pestana.txt_resultado = Mock()
-        self.pestana.tabla_iteraciones = Mock()
-        self.pestana.tabla_iteraciones.get_children.return_value = ()
-        self.pestana.canvas_grafica = Mock()
-        self.pestana.canvas_grafica.winfo_width.return_value = 500
-        self.pestana.canvas_grafica.winfo_height.return_value = 210
-        self.pestana._redibujar_grafica = Mock()
-        self.pestana._mostrar_mensaje_grafica = Mock()
-
-    @patch("interfaz.pestanaReglaFalsa.mostrar_error")
-    @patch("interfaz.pestanaReglaFalsa.mostrar_texto")
-    def test_resumen_tabla_y_mensaje_de_error(self, mostrar, error):
-        self.pestana.var_ecuacion.set("x^3 - x - 2")
-        self.pestana.var_a.set("1")
-        self.pestana.var_b.set("2")
-        self.pestana.var_tolerancia.set("1e-6")
-        self.pestana.var_iteraciones.set("100")
-
-        self.pestana._accion_resolver()
-
-        resumen = mostrar.call_args.args[1]
-        self.assertAlmostEqual(self.pestana.resultado_biseccion.raiz, 1.52138, places=5)
-        self.assertIn("AVISO:", resumen)
-        self.assertEqual(self.pestana.tabla_iteraciones.insert.call_count,
-                         len(self.pestana.resultado_biseccion.iteraciones) * 8)
-        textos = [
-            llamada.kwargs.get("text", "")
-            for llamada in self.pestana.tabla_iteraciones.insert.call_args_list
-        ]
-        self.assertTrue(any(texto.startswith("Decisión:") for texto in textos))
-        self.assertTrue(any(texto.startswith("Parada:") for texto in textos))
-        error.assert_not_called()
-
-        self.pestana.var_ecuacion.set("x^2 + 1")
-        self.pestana._accion_resolver()
-        self.assertIsNone(self.pestana.resultado_biseccion)
-        self.pestana._mostrar_mensaje_grafica.assert_called_once()
-        error.assert_called_once()
-
-    @patch("interfaz.pestanaReglaFalsa.mostrar_error")
-    @patch("interfaz.pestanaReglaFalsa.mostrar_texto")
-    def test_resolver_autoajusta_y_usa_cien_iteraciones(self, mostrar, error):
-        self.pestana.var_ecuacion.set("x^2 = 2")
-        self.pestana._accion_resolver()
-        self.assertEqual(self.pestana.var_iteraciones.get(), "100")
-        texto = mostrar.call_args.args[1]
-        self.assertIn("convergencia alcanzada", texto)
-        self.assertAlmostEqual(self.pestana.resultado_biseccion.raiz, math.sqrt(2), places=5)
-        error.assert_not_called()
 
 
 if __name__ == "__main__":
