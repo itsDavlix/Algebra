@@ -1,4 +1,4 @@
-# CalcuMaxing · Álgebra lineal y métodos numéricos
+# Iterum · Álgebra lineal y métodos numéricos
 
 Ejecuta `python main.py` con Python 3 y Tkinter. **No usa bibliotecas externas**: todo el cálculo, el análisis de funciones y el motor de gráficas están programados con la biblioteca estándar.
 

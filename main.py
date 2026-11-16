@@ -1,4 +1,4 @@
-"""CalcuMaxing - Calculadora de Álgebra Lineal y Métodos Numéricos
+"""Iterum · Álgebra lineal y métodos numéricos
 Universidad Americana (UAM) - Álgebra Lineal (MTM0120)
 
 DAVID ALEJANDRO ESPINOZA LARGAESPADA
@@ -161,7 +161,7 @@ class CalculadoraAlgebraLineal(tk.Tk):
 
     def __init__(self):
         super().__init__()
-        self.title("CalcuMaxing")
+        self.title("Iterum · Álgebra lineal y métodos numéricos")
         ancho_pantalla, alto_pantalla = self.winfo_screenwidth(), self.winfo_screenheight()
         ancho = min(1500, max(980, int(ancho_pantalla * 0.9)))
         alto = min(1000, max(640, int(alto_pantalla * 0.9)))
@@ -211,7 +211,7 @@ class CalculadoraAlgebraLineal(tk.Tk):
         tk.Frame(self, background=PALETA["borde"], width=1).pack(side="left", fill="y")
         marca = tk.Frame(lateral, background=PALETA["lateral"])
         marca.pack(fill="x", padx=16, pady=(20, 18))
-        tk.Label(marca, text="CalcuMaxing", font=fuente(14, "bold"), background=PALETA["lateral"],
+        tk.Label(marca, text="Iterum", font=fuente(14, "bold"), background=PALETA["lateral"],
                  foreground=PALETA["texto"]).pack(anchor="w")
         tk.Label(marca, text="Álgebra lineal y métodos numéricos", font=fuente(9),
                  background=PALETA["lateral"], foreground=PALETA["texto_tenue"]).pack(anchor="w")

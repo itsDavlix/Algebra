@@ -15,7 +15,7 @@ class PestanaInicio(ttk.Frame):
 
     def _construir(self):
         # La guía se adapta al ancho y permite recorrer todo el contenido.
-        marco = ttk.LabelFrame(self, text="Bienvenido a CalcuMaxing", style="Seccion.TLabelframe", padding=18)
+        marco = ttk.LabelFrame(self, text="Bienvenido a Iterum", style="Seccion.TLabelframe", padding=18)
         marco.pack(fill="both", expand=True)
 
         texto = (
