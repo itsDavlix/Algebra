@@ -1,6 +1,6 @@
 
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk
 
 from interfaz.estilos import PALETA, fuente as tipografia
 
@@ -18,11 +18,6 @@ def mostrar_texto(caja, texto):
     caja.see("1.0")
     if estado_anterior == "disabled":
         caja.configure(state="disabled")
-
-
-def mostrar_error(error):
-    """Muestra un error de validación en una ventana emergente."""
-    messagebox.showerror("Revisa los datos", str(error))
 
 
 def _marcar_resultado(caja, texto):

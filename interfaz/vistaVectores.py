@@ -8,6 +8,8 @@ import tkinter as tk
 from tkinter import ttk
 
 from interfaz.campoMatematico import CampoValor
+from interfaz.dibujos import admite_plano_vectores, dibujo_vectores
+from interfaz.ventanaPlano import abrir_plano
 from interfaz.componentes import PanelProcedimiento, SelectorSegmentado, TablaPaginada, tarjeta
 from interfaz.estilos import PALETA, fuente
 from nucleo.expresiones import evaluar_valor
@@ -126,6 +128,9 @@ class VistaVectores(ttk.Frame):
         self.validacion.grid(row=1, column=0, sticky="new", pady=(8, 8))
         ttk.Button(lateral, text="Calcular", style="Panel.Accion.TButton", command=self.calcular).grid(
             row=2, column=0, sticky="ew")
+        self.boton_plano = ttk.Button(lateral, text="◇ Ver en el plano", style="Panel.TButton",
+                                      command=self.ver_plano, state="disabled")
+        self.boton_plano.grid(row=3, column=0, sticky="ew", pady=(6, 0))
 
     def _construir_resultados(self):
         zona = ttk.Frame(self, padding=(0, 10, 0, 0))
@@ -180,6 +185,7 @@ class VistaVectores(ttk.Frame):
 
     def calcular(self):
         op = self.operacion
+        k = None
         try:
             v1 = _leer(self.v1.get(), "V₁") if "v1" in USA[op] else None
             v2 = _leer(self.v2.get(), "V₂") if "v2" in USA[op] else None
@@ -222,12 +228,19 @@ class VistaVectores(ttk.Frame):
             self.validacion.configure(text=str(exc), foreground=PALETA["error"])
             return
         self.resultado = (texto, tuple(pasos))
+        self._dibujo = dibujo_vectores(op, v1, v2, k) if admite_plano_vectores(op, v1, v2) else None
+        self.boton_plano.state(["!disabled"] if self._dibujo else ["disabled"])
         self.estado.configure(text=f"✓ {op}", style="Panel.Exito.TLabel")
         self.valor.configure(text=texto)
         self.tabla.definir_filas([(i + 1, titulo_paso(p)) for i, p in enumerate(pasos)])
         self.panel.mostrar(self._lineas_completas())
         self.validacion.configure(text="Calculado. Selecciona un paso para ver su detalle.",
                                   foreground=PALETA["texto_suave"])
+
+    def ver_plano(self):
+        """Los vectores de R² como flechas desde el origen, en ventana aparte."""
+        if getattr(self, "_dibujo", None):
+            abrir_plano(self, "plano", f"Plano · {self.operacion}", self._dibujo)
 
     def _al_elegir_paso(self, indice):
         if self.resultado:
@@ -245,6 +258,8 @@ class VistaVectores(ttk.Frame):
         if not getattr(self, "resultado", None):
             return
         self.resultado = None
+        self._dibujo = None
+        self.boton_plano.state(["disabled"])
         self.estado.configure(text="Sin calcular", style="Panel.Pendiente.TLabel")
         self.valor.configure(text="")
         self.tabla.limpiar()

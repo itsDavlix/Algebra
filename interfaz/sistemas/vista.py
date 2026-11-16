@@ -12,6 +12,7 @@ from interfaz.campoMatematico import CampoValor
 from interfaz.componentes import (
     MenuEjercicios, PanelProcedimiento, SelectorSegmentado, TablaPaginada, tarjeta,
 )
+from interfaz.dibujos import admite_plano_sistema, dibujo_sistema, encuadre_proporcional
 from interfaz.estilos import PALETA, fuente
 from interfaz.motorGrafica import PlanoCartesiano
 from interfaz.sistemas import convergencia
@@ -118,12 +119,18 @@ class VistaSistemas(ttk.Frame):
         cabecera = ttk.Frame(grafica, style="Panel.TFrame")
         cabecera.grid(row=0, column=0, sticky="ew", pady=(0, 6))
         cabecera.columnconfigure(0, weight=1)
-        ttk.Label(cabecera, text="CONVERGENCIA", style="Panel.Seccion.TLabel").grid(row=0, column=0, sticky="w")
-        self.selector_grafica = SelectorSegmentado(cabecera, ("Componentes", "Error log₁₀"), self._cambiar_grafica)
+        ttk.Label(cabecera, text="GRÁFICA", style="Panel.Seccion.TLabel").grid(row=0, column=0, sticky="w")
+        self.selector_grafica = SelectorSegmentado(cabecera, ("Componentes", "Error log₁₀", "Plano"), self._cambiar_grafica)
         self.selector_grafica.grid(row=0, column=1)
         self.selector_grafica.marcar(self.modo_grafica)
         self.plano = PlanoCartesiano(grafica, height=160)
         self.plano.grid(row=1, column=0, sticky="nsew")
+        self.plano.bind("<Configure>", lambda _e: self._reencuadrar_plano(), add="+")
+        # La nota va sobre el plano (place), no en la cuadrícula: así no altera el tamaño de la tarjeta.
+        self.nota_grafica = tk.Label(self.plano, text="", font=fuente(9), justify="left", wraplength=300,
+                                     background=PALETA["plano"], foreground=PALETA["texto_suave"], padx=6)
+        self.nota_grafica.colores_propios = True
+        self.nota_grafica.place(x=8, y=6, anchor="nw")
         self.aviso_grafica = ttk.Label(grafica, style="Panel.Tenue.TLabel", justify="center")
         self.aviso_grafica.place(in_=self.plano, relx=0.5, rely=0.5, anchor="center")
 
@@ -239,6 +246,11 @@ class VistaSistemas(ttk.Frame):
         self._analizar()
 
     def _analizar(self):
+        self._analizar_texto()
+        if self.modo_grafica == "Plano":      # el plano depende de A: se rehace con el sistema nuevo
+            self._dibujar_grafica()
+
+    def _analizar_texto(self):
         """Lee el sistema y muestra su forma matricial, det(A), dominancia y ρ(T)."""
         self._programado = None
         self._descartar()
@@ -463,7 +475,43 @@ class VistaSistemas(ttk.Frame):
         self.selector_grafica.marcar(modo)
         self._dibujar_grafica()
 
+    def _dibujar_plano_2x2(self):
+        """Las dos rectas y su intersección (y, si hay, el camino de Jacobi / Gauss-Seidel)."""
+        self.plano.definir_funcion(None)
+        if self.A is None or not admite_plano_sistema(self.A):
+            self.plano.definir_capas([])
+            self.plano.definir_puntos([])
+            self.nota_grafica.configure(text="")
+            self.aviso_grafica.configure(text="El plano está disponible con 2 ecuaciones y 2 incógnitas.")
+            self.aviso_grafica.lift()
+            return
+        self.aviso_grafica.lower(self.plano)
+        trayectoria = None
+        if self.resultado is not None and self.metodo in ITERATIVOS and self.resultado.iteraciones:
+            trayectoria = [(0, self.resultado.x0)] + [(paso.k, paso.x) for paso in self.resultado.iteraciones]
+        self._dibujo_plano = dibujo_sistema(self.A, self.b, trayectoria)
+        self.plano.definir_funcion(None, self._dibujo_plano.curvas)
+        self.plano.definir_capas(self._dibujo_plano.capas)
+        self.plano.definir_puntos(self._dibujo_plano.puntos)
+        self.nota_grafica.configure(text=self._dibujo_plano.nota)
+        self.nota_grafica.lift()
+        self._reencuadrar_plano(forzar=True)
+
+    def _reencuadrar_plano(self, forzar=False):
+        """Misma escala en x e y para que las pendientes de las rectas se vean reales."""
+        dibujo = getattr(self, "_dibujo_plano", None)
+        if self.modo_grafica != "Plano" or dibujo is None or self.plano.winfo_width() < 60:
+            return
+        if forzar or self.plano.ajuste_automatico:
+            self.plano.encuadrar(*encuadre_proporcional(dibujo.encuadre, self.plano.winfo_width(),
+                                                        self.plano.winfo_height()))
+
     def _dibujar_grafica(self):
+        if self.modo_grafica == "Plano":
+            self._dibujar_plano_2x2()
+            return
+        self.plano.definir_funcion(None)
+        self.nota_grafica.configure(text="")
         iterativos = {m: r for m, r in self.resultados.items() if m in ITERATIVOS}
         if not iterativos:
             self.plano.definir_capas([])

@@ -7,8 +7,11 @@ Pruebas: `python -m unittest discover -s tests -v`.
 ## Interfaz
 
 - Paleta única grafito con tinte morado, definida en `interfaz/estilos.py` (`PALETA`). No hay modo claro: cada color tiene un significado fijo.
+- **Para presentar resultados**: cada tabla y cada procedimiento tienen **⧉ Copiar** (la tabla completa sale tabulada y se pega directo en Excel o Word; el procedimiento sale como texto plano). En ventanas estrechas los botones pasan a solo icono con ayuda al pasar el cursor.
+- **Plano para álgebra lineal**: en Sistemas lineales, el modo **Plano** dibuja las dos rectas de un sistema 2×2, su intersección y, con Jacobi o Gauss-Seidel, el camino de las aproximaciones. En Vectores (R²), **◇ Ver en el plano** muestra suma (paralelogramo), resta, escalar, norma y el ángulo del producto punto, con la misma escala en ambos ejes.
+- **Números romanos** se calcula al escribir, con el equivalente decimal de cada número y avisos en línea (sin ventanas emergentes).
 - Menú lateral por categorías: Inicio · Álgebra lineal (Vectores, Matrices, Sistemas lineales) · Raíces de ecuaciones (Bisección / Regula Falsi y Newton-Raphson / Secante) · Otros (Números romanos). Cada vista se crea la primera vez que se abre.
-- Las vistas de raíces se ajustan a la ventana como un panel de trabajo: la gráfica con los parámetros ocupa el 62 % del alto y la franja de resultados el 38 %. Al redimensionar, todo se escala sin recortarse. La tabla muestra tantas filas por página como quepan, y **⤢ Ver todas** / **⤢ Completo** abren la tabla entera o el procedimiento completo en ventanas aparte, redimensionables. Solo si la ventana baja de 680 px de alto aparece una barra de desplazamiento, suave y encadenada (sobre la gráfica, la rueda hace zoom).
+- Las vistas de raíces se ajustan a la ventana como un panel de trabajo: la gráfica con los parámetros ocupa el 62 % del alto y la franja de resultados el 38 %. Al redimensionar, todo se escala sin recortarse. La tabla muestra tantas filas por página como quepan, y **⤢ Todas** / **⤢ Completo** abren la tabla entera o el procedimiento completo en ventanas aparte, redimensionables. Solo si la ventana baja de 680 px de alto aparece una barra de desplazamiento, suave y encadenada (sobre la gráfica, la rueda hace zoom).
 
 ## Raíces de ecuaciones
 
@@ -144,5 +147,5 @@ Al validar los documentos se encontraron errores en algunas diapositivas paso a 
   - `motorGrafica.py`, `campoMatematico.py`, `estilos.py`.
   - `raices/`: vista de raíces dividida en `vista.py` (estructura), `grafica.py` (función y plano), `resultados.py` (resolver, tabla y procedimiento), `validacion.py`, `capas.py` y `configuracion.py`.
   - `sistemas/`: `vista.py` y `convergencia.py`.
-  - `vistaMatrices.py`, `vistaVectores.py`, `pestanaInicio.py`, `pestanaRomanos.py`.
+  - `vistaMatrices.py`, `vistaVectores.py`, `vistaRomanos.py`, `pestanaInicio.py`; `dibujos.py` (geometría de vectores y sistemas 2×2, sin Tk) y `ventanaPlano.py`.
 - `tests/`: pruebas del núcleo, de los ejercicios y de las vistas con Tk real (se omiten si Tk no está disponible).

@@ -7,6 +7,7 @@ from tkinter import ttk
 from interfaz.estilos import configurar_estilo
 from interfaz.sistemas import VistaSistemas
 from interfaz.vistaMatrices import VistaMatrices
+from interfaz.vistaRomanos import VistaRomanos
 from interfaz.vistaVectores import VistaVectores
 from nucleo.ejercicios import MATRICES, SISTEMAS
 
@@ -89,6 +90,90 @@ class PruebasVistas(unittest.TestCase):
         vista.texto_conjunto.insert("1.0", "1, 2\n2, 4")
         vista.calcular()
         self.assertEqual(vista.valor.cget("text"), "Linealmente dependientes")
+
+    def test_plano_de_vectores_y_de_sistemas(self):
+        vista = self._vista(VistaVectores)
+        vista.cargar_ejemplo()                                        # V₁ · V₂ en R³: sin plano
+        self.assertTrue(vista.boton_plano.instate(["disabled"]))
+        vista.v1.set("1, 2")
+        vista.v2.set("3, −1")
+        vista.cambiar_operacion("V₁ + V₂")
+        vista.calcular()
+        self.assertTrue(vista.boton_plano.instate(["!disabled"]))
+        vista.ver_plano()
+        self.raiz.update()
+        self.assertEqual(len(vista.ventanas["plano"].plano.puntos), 3)
+        vista.ventanas["plano"].destroy()
+        vista = self._vista(VistaSistemas)
+        vista.cambiar_metodo("Gauss-Seidel")
+        vista.establecer_texto("4x + y = 9\nx - 3y = -5")
+        vista.variable_x0.set("0, 0")
+        vista.resolver()
+        vista._cambiar_grafica("Plano")
+        self.raiz.update()
+        claves = {p.clave for p in vista.plano.puntos}
+        self.assertTrue({"sol", "k0", "k1"} <= claves)
+        self.assertEqual(len(vista.plano.curvas_extra), 2)
+        vista.establecer_texto("x + y + z = 3\nx - y = 0\ny + z = 2")
+        vista.resolver()
+        self.raiz.update()
+        self.assertEqual(vista.plano.puntos, [])
+        self.assertIn("2 ecuaciones", vista.aviso_grafica.cget("text"))
+
+    def test_romanos_en_vivo_sin_ventanas_de_error(self):
+        vista = self._vista(VistaRomanos)
+        self.assertEqual(vista.valor.cget("text"), "XX")              # ejemplo XIV + VI
+        vista.cambiar_operacion("A × B")
+        self.assertEqual(vista.valor.cget("text"), "LXXXIV")
+        vista.a.set("IIII")                                           # no canónico: aviso en línea
+        self.assertIn("✗", vista.nota_a.cget("text"))
+        self.assertIsNone(vista.resultado)
+        vista.a.set("MM")
+        vista.b.set("MM")                                             # 4000 000 > 3999
+        self.assertIn("3999", vista.validacion.cget("text"))
+        vista.cambiar_operacion("A ÷ B")
+        vista.a.set("XX")
+        vista.b.set("IV")
+        self.assertEqual(vista.valor.cget("text"), "V")
+        self.assertIn("COMPROBACIÓN", vista.panel.completo()[-1][0] + "".join(t for t, _ in vista.panel.completo()))
+        vista.b.set("")
+        self.assertIsNone(vista.resultado)
+
+    def test_copiar_tabla_y_procedimiento(self):
+        vista = self._vista(VistaSistemas)
+        vista.cargar_ejemplo()
+        vista.cambiar_metodo("Jacobi")
+        vista.resolver()
+        self.raiz.update()
+        vista.tabla.copiar()
+        copiado = self.raiz.clipboard_get().split("\n")
+        self.assertEqual(len(copiado), len(vista.resultado.iteraciones) + 2)   # encabezado + fila k = 0
+        self.assertTrue(all(len(f.split("\t")) == len(vista.tabla.columnas) for f in copiado))
+        self.assertEqual(vista.tabla.boton_copiar.cget("text"), "✓ Copiado")
+        vista.panel.copiar()
+        texto = self.raiz.clipboard_get()
+        self.assertIn("Jacobi", texto)
+        self.assertGreater(texto.count("Iteración"), 5)   # todo el desarrollo, no solo la fila elegida
+
+    def test_encabezados_de_tarjetas_sin_recortes(self):
+        """Con la ventana al mínimo (1000 px) los botones pasan a icono y nada queda cortado."""
+        self.raiz.geometry("1000x850")
+        self.addCleanup(self.raiz.geometry, "1500x950")
+        for _ in range(3):
+            self.raiz.update()
+        for clase in (VistaSistemas, VistaMatrices, VistaVectores):
+            vista = self._vista(clase)
+            if hasattr(vista, "cargar_ejemplo"):
+                vista.cargar_ejemplo()
+            for _ in range(5):
+                self.raiz.update()
+            for tarjeta in (vista.tabla, vista.panel):
+                cabecera = next(c for c in tarjeta.winfo_children() if c.winfo_class() == "TFrame")
+                for hijo in cabecera.winfo_children():
+                    with self.subTest(vista=clase.__name__, widget=str(hijo)):
+                        self.assertGreaterEqual(hijo.winfo_width(), 10)
+                        self.assertLessEqual(hijo.winfo_x() + hijo.winfo_width(), cabecera.winfo_width())
+            vista.destroy()   # cada vista debe tener la ventana para ella sola
 
 
 if __name__ == "__main__":

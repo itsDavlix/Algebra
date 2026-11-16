@@ -11,6 +11,7 @@ import math
 import tkinter as tk
 from tkinter import ttk
 
+from interfaz.ayudas import AyudaEmergente
 from interfaz.estilos import PALETA, fuente, mezclar
 
 ALTO_FILA = 26              # debe coincidir con rowheight de Tabla.Treeview
@@ -29,6 +30,50 @@ def numero_corto(valor, cifras=6):
     """Cifras significativas sin «−0» y con signo menos tipográfico."""
     texto = f"{valor:.{cifras}g}"
     return "0" if texto in ("-0", "0") or abs(valor) < 1e-12 else texto.replace("-", "−")
+
+
+# ---------------------------------------------------------------- portapapeles
+def copiar_texto(widget, texto, boton=None):
+    """Copia texto plano al portapapeles; el botón confirma un instante con «✓ Copiado»."""
+    widget.clipboard_clear()
+    widget.clipboard_append(texto)
+    widget.update_idletasks()
+    if boton is not None and boton.winfo_exists():
+        original = boton.cget("text")
+        boton.configure(text="✓ Copiado")
+        identificador = boton.after(1400, lambda: _restaurar(boton, original))
+        boton.bind("<Destroy>", lambda _e: boton.after_cancel(identificador), add="+")
+
+
+def _restaurar(boton, texto):
+    try:
+        boton.configure(text=texto)
+    except tk.TclError:   # la ventana se cerró antes de restaurar la etiqueta
+        pass
+
+
+def adaptar_cabecera(cabecera, botones, minimo):
+    """Si la cabecera es más angosta que `minimo`, los botones pasan a solo icono.
+
+    botones: [(boton, texto completo, icono)]. Evita que el título quede aplastado
+    en ventanas pequeñas sin quitar la etiqueta cuando hay espacio.
+    """
+    def ajustar(evento):
+        compacto = evento.width < minimo
+        for boton, completo, icono in botones:
+            boton.configure(text=icono if compacto else completo, width=2 if compacto else len(completo) + 1,
+                            padding=(2, 6) if compacto else "")
+    cabecera.bind("<Configure>", ajustar)
+
+
+def tabla_a_texto(columnas, filas):
+    """Tabla en TSV (columnas separadas por tabulador): se pega directo en Excel o Word."""
+    encabezado = "\t".join(c[1] for c in columnas)
+    return "\n".join([encabezado] + ["\t".join(str(v) for v in fila) for fila in filas])
+
+
+def lineas_a_texto(lineas):
+    return "\n".join(texto for texto, _estilo in lineas)
 
 
 # ---------------------------------------------------------------- texto
@@ -88,6 +133,9 @@ def ventana_texto(dueno, clave, titulo, lineas):
     marco.rowconfigure(0, weight=1)
     texto = crear_texto_procedimiento(marco, PALETA["fondo"], tamano=11)
     texto.grid(row=0, column=0, sticky="nsew")
+    boton = ttk.Button(marco, text="⧉ Copiar todo", width=13, style="Panel.TButton")
+    boton.configure(command=lambda: copiar_texto(marco, lineas_a_texto(lineas), boton))
+    boton.grid(row=1, column=0, sticky="e", pady=(8, 0))
     barra = ttk.Scrollbar(marco, orient="vertical", command=texto.yview)
     barra.grid(row=0, column=1, sticky="ns")
     texto.configure(yscrollcommand=barra.set)
@@ -128,7 +176,7 @@ class TablaPaginada(ttk.Frame):
     """Tabla cuyo número de filas por página depende del alto disponible.
 
     Las filas se entregan completas (lista de tuplas); solo se insertan las de
-    la página visible. «⤢ Ver todas» abre todas en una ventana aparte.
+    la página visible. «⤢ Todas» abre todas en una ventana aparte.
     """
 
     def __init__(self, padre, titulo, al_elegir=None, titulo_ventana="Tabla completa", nota=""):
@@ -151,13 +199,20 @@ class TablaPaginada(ttk.Frame):
         ttk.Label(cabecera, text=titulo, style="Panel.Seccion.TLabel").grid(row=0, column=0, sticky="w")
         ttk.Button(cabecera, text="‹", width=2, style="Panel.TButton",
                    command=lambda: self.ir_a_pagina(self.pagina - 1)).grid(row=0, column=1)
-        self.etiqueta_pagina = ttk.Label(cabecera, text="", style="Panel.Ayuda.TLabel", width=13,
+        self.etiqueta_pagina = ttk.Label(cabecera, text="", style="Panel.Ayuda.TLabel", width=11,
                                          anchor="center")
         self.etiqueta_pagina.grid(row=0, column=2)
         ttk.Button(cabecera, text="›", width=2, style="Panel.TButton",
                    command=lambda: self.ir_a_pagina(self.pagina + 1)).grid(row=0, column=3)
-        ttk.Button(cabecera, text="⤢ Ver todas", style="Panel.TButton",
-                   command=self.abrir_completa).grid(row=0, column=4, padx=(8, 0))
+        self.boton_copiar = ttk.Button(cabecera, text="⧉ Copiar", width=9, style="Panel.TButton",
+                                       command=self.copiar)
+        self.boton_copiar.grid(row=0, column=4, padx=(8, 0))
+        self.boton_todas = ttk.Button(cabecera, text="⤢ Todas", width=8, style="Panel.TButton",
+                                      command=self.abrir_completa)
+        self.boton_todas.grid(row=0, column=5, padx=(4, 0))
+        adaptar_cabecera(cabecera, [(self.boton_copiar, "⧉ Copiar", "⧉"), (self.boton_todas, "⤢ Todas", "⤢")], 470)
+        AyudaEmergente(self.boton_copiar, "Copia toda la tabla; se pega directo en Excel o Word")
+        AyudaEmergente(self.boton_todas, "Abre todas las filas en una ventana aparte")
         self.tabla = ttk.Treeview(self, columns=("n",), show="headings", height=2,
                                   style="Tabla.Treeview", selectmode="browse")
         self.tabla.tag_configure("par", background=PALETA["superficie"])
@@ -168,6 +223,11 @@ class TablaPaginada(ttk.Frame):
         self.tabla.grid(row=1, column=0, sticky="nsew")
         self.tabla.bind("<<TreeviewSelect>>", self._al_seleccionar)
         self.tabla.bind("<Configure>", self._ajustar_filas)
+
+    def copiar(self):
+        """Todas las filas (no solo la página visible) como texto tabulado."""
+        if self.filas:
+            copiar_texto(self, tabla_a_texto(self.columnas, self.filas), self.boton_copiar)
 
     def configurar_columnas(self, columnas):
         """columnas: [(clave, título, ancho)]; la clave «n» va centrada y fija."""
@@ -287,8 +347,16 @@ class PanelProcedimiento(ttk.Frame):
         cabecera.grid(row=0, column=0, columnspan=2, sticky="ew", pady=(0, 6))
         cabecera.columnconfigure(0, weight=1)
         ttk.Label(cabecera, text=titulo, style="Panel.Seccion.TLabel").grid(row=0, column=0, sticky="w")
-        ttk.Button(cabecera, text="⤢ Completo", style="Panel.TButton",
-                   command=self.abrir_completo).grid(row=0, column=1)
+        self.boton_copiar = ttk.Button(cabecera, text="⧉ Copiar", width=9, style="Panel.TButton",
+                                       command=self.copiar)
+        self.boton_copiar.grid(row=0, column=1, padx=(0, 4))
+        self.boton_completo = ttk.Button(cabecera, text="⤢ Completo", width=11, style="Panel.TButton",
+                                         command=self.abrir_completo)
+        self.boton_completo.grid(row=0, column=2)
+        adaptar_cabecera(cabecera, [(self.boton_copiar, "⧉ Copiar", "⧉"),
+                                    (self.boton_completo, "⤢ Completo", "⤢")], 350)
+        AyudaEmergente(self.boton_copiar, "Copia el procedimiento completo como texto")
+        AyudaEmergente(self.boton_completo, "Abre el procedimiento completo en una ventana aparte")
         self.texto = crear_texto_procedimiento(self, PALETA["superficie"])
         self.texto.grid(row=1, column=0, sticky="nsew")
         barra = ttk.Scrollbar(self, orient="vertical", command=self.texto.yview)
@@ -297,6 +365,10 @@ class PanelProcedimiento(ttk.Frame):
 
     def mostrar(self, lineas):
         escribir_lineas(self.texto, lineas)
+
+    def copiar(self):
+        """Copia el procedimiento completo (no solo el paso mostrado) como texto plano."""
+        copiar_texto(self, lineas_a_texto(self.completo()), self.boton_copiar)
 
     def abrir_completo(self):
         titulo = self.titulo_ventana() if callable(self.titulo_ventana) else self.titulo_ventana

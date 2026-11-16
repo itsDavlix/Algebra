@@ -33,8 +33,8 @@ class PuntoGrafico:
 class Capa:
     """Elemento dibujado por un método.
 
-    tipo: 'banda' (x0..x1 sombreado), 'segmento' (p→q), 'vertical' (x),
-    'texto' (en p). Las coordenadas son del plano, no de la pantalla.
+    tipo: 'banda' (x0..x1 sombreado), 'segmento' (p→q), 'flecha' (segmento con punta en q),
+    'vertical' (x), 'texto' (en p). Las coordenadas son del plano, no de la pantalla.
     """
 
     tipo: str
@@ -366,6 +366,12 @@ class PlanoCartesiano(tk.Canvas):
             q = self.a_pantalla(*capa.q)
             if all(math.isfinite(v) and abs(v) < 1e6 for v in (*p, *q)):
                 self.create_line(*p, *q, fill=color, width=capa.ancho, dash=guiones)
+        elif capa.tipo == "flecha":
+            p = self.a_pantalla(*capa.p)
+            q = self.a_pantalla(*capa.q)
+            if all(math.isfinite(v) and abs(v) < 1e6 for v in (*p, *q)):
+                self.create_line(*p, *q, fill=color, width=capa.ancho, dash=guiones, arrow="last",
+                                 arrowshape=(11, 13, 4))
         elif capa.tipo == "vertical":
             sx = self.a_pantalla(capa.p[0], 0)[0]
             self.create_line(sx, 0, sx, alto, fill=color, width=capa.ancho, dash=guiones)

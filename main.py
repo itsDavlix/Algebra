@@ -35,7 +35,7 @@ from interfaz.vistaVectores import VistaVectores
 from interfaz.vistaMatrices import VistaMatrices
 from interfaz.sistemas import VistaSistemas
 from interfaz.raices import VistaRaiz
-from interfaz.pestanaRomanos import PestanaRomanos
+from interfaz.vistaRomanos import VistaRomanos
 
 
 PIXELES_POR_MUESCA = 60
@@ -52,7 +52,7 @@ SECCIONES = (
         ("Newton-Raphson / Secante", lambda padre: VistaRaiz(padre, ("Newton-Raphson", "Secante"))),
     )),
     ("OTROS", (
-        ("Números romanos", lambda padre: PestanaRomanos(padre)),
+        ("Números romanos", lambda padre: VistaRomanos(padre)),
     )),
 )
 
