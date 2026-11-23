@@ -131,5 +131,18 @@ class PruebasProcedimientos(unittest.TestCase):
         self.assertIn("la raíz está en [a, c]", texto)
 
 
+class PruebasInflexiones(unittest.TestCase):
+    def test_recta_sin_inflexiones_y_cubica_con_una(self):
+        from nucleo.expresiones import analizar
+        for texto, esperadas in (("e(-x) - x", []), ("2x + 1", []), ("x^3 - x", [0.0]), ("1/x", [])):
+            e = analizar(texto)
+            d = e.derivada()
+            halladas = [p.x for p in puntos_notables(e, -4, 4, d, d.derivada()) if p.tipo == "inflexion"]
+            self.assertEqual(len(halladas), len(esperadas), texto)
+            for x, esperado in zip(halladas, esperadas):
+                self.assertAlmostEqual(x, esperado, places=6)
+
+
+
 if __name__ == "__main__":
     unittest.main()

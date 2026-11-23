@@ -261,8 +261,19 @@ def puntos_notables(funcion, a, b, derivada=None, segunda=None, cantidad=600):
 
     # Inflexiones: cambios de signo de f″.
     curvaturas = [(x, _evaluar(segunda, x) if y is not None else None) for x, y in muestras]
-    for xa, xb, ca, cb in _cambios_de_signo(curvaturas):
-        x = xa if xa == xb else refinar_cambio_de_signo(segunda, xa, xb, ca, cb)
+    # Una recta (f″ ≡ 0) o un tramo con f″ = 0 no tiene inflexiones: se ignoran los ceros
+    # exactos y se buscan cambios de signo entre muestras con f″ ≠ 0.
+    escala = max((abs(c) for _, c in curvaturas if c is not None), default=0.0)
+    cambios, anterior = [], None
+    for x, c in curvaturas:
+        if c is None:                       # fuera del dominio: no se compara a través del hueco
+            anterior = None
+        elif abs(c) > 1e-12 * max(1.0, escala):
+            if anterior is not None and (anterior[1] < 0) != (c < 0):
+                cambios.append((anterior[0], x, anterior[1], c))
+            anterior = (x, c)
+    for xa, xb, ca, cb in cambios:
+        x = refinar_cambio_de_signo(segunda, xa, xb, ca, cb)
         if x is None:
             continue
         y = _evaluar(funcion, x)

@@ -98,6 +98,7 @@ class VistaRomanos(ttk.Frame):
         self.estado = ttk.Label(marco, text="Sin calcular", style="Panel.Pendiente.TLabel")
         self.estado.pack(anchor="w", pady=(6, 4))
         self.valor = ttk.Label(marco, style="Panel.Formula.TLabel", justify="left", wraplength=300,
+                               foreground=PALETA["texto"],
                                font=fuente(20, "bold", mono=True))
         self.valor.pack(anchor="w")
         self.decimal = ttk.Label(marco, style="Panel.Tenue.TLabel")
@@ -154,7 +155,7 @@ class VistaRomanos(ttk.Frame):
             self.validacion.configure(text=str(exc), style="Panel.Error.TLabel")
             return
         pasos = list(pasos) + [
-            "COMPROBACIÓN. Convertir el resultado romano de nuevo a decimal debe conservar el valor:\n"
+            f"PASO {len(pasos) + 1}. Comprobar: el resultado vuelve a decimal con el mismo valor.\n"
             f"{romano} = {comprobado}\n" + ("✓ La comprobación es correcta." if comprobado == decimal
                                             else "✗ La comprobación no coincide.")]
         self.resultado = (romano, decimal, tuple(pasos))

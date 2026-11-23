@@ -58,10 +58,11 @@ class PruebasInterfazBanco(unittest.TestCase):
         self._asentar()
         self.assertFalse(vista.selector_numeros.winfo_ismapped())     # solo aplica a Gauss-Jordan
 
-    def test_tarjeta_de_resultado_cabe_a_1000x700(self):
+    def test_tarjeta_de_resultado_cabe_en_la_ventana_minima(self):
+        """Ventana mínima de la app (1180 px) con el menú compacto: ~1115 px para la vista."""
         for texto, modo in ((P1_E12, "Fracciones"), (P1_E11, "Decimales")):
             with self.subTest(modo=modo):
-                vista = self._vista(VistaSistemas, "1000x700")
+                vista = self._vista(VistaSistemas, "1115x700")
                 vista.establecer_texto(texto)
                 vista.cambiar_modo_numeros(modo)
                 vista.resolver()
@@ -93,12 +94,36 @@ class PruebasInterfazBanco(unittest.TestCase):
         self.assertIn("no es continua", vista.validacion.cget("text"))
 
     def test_vista_previa_larga_no_ensancha(self):
-        vista = self._vista(lambda padre: VistaRaiz(padre, ("Newton-Raphson", "Secante")), "1000x700")
+        vista = self._vista(lambda padre: VistaRaiz(padre, ("Newton-Raphson", "Secante")), "1115x700")
         antes = vista.winfo_reqwidth()
         vista.campo_funcion.establecer("e(-x) + " + " + ".join(f"sin({k}x)" for k in range(1, 9)))
         vista.campo_funcion._validar()
         self._asentar()
         self.assertLessEqual(vista.winfo_reqwidth(), antes)
+
+    def test_cambiar_de_funcion_reencuadra_la_grafica(self):
+        """Antes, el aviso diferido del plano marcaba la vista como «manual» y no se reencuadraba."""
+        vista = self._vista(lambda padre: VistaRaiz(padre, ("Newton-Raphson", "Secante")))
+        vista.campo_funcion.establecer("e^(1/x) + 2x / tan(x) = 2")
+        vista.campo_funcion._validar()
+        for _ in range(8):
+            self.raiz.update()
+            self.raiz.after(60)
+        self.assertFalse(vista._vista_manual)
+        vista.campo_funcion.establecer("e(-x) - x")
+        vista.campo_funcion._validar()
+        self._asentar()
+        _, _, y0, y1 = vista.plano.vista
+        self.assertLess(y1 - y0, 20)                                        # la recta se ve, no queda plana
+        self.assertFalse([p for p in vista.notables if p.tipo == "inflexion"])  # una recta no tiene inflexiones
+
+    def test_tabla_ensancha_columnas_y_ofrece_barra(self):
+        vista = self._vista(lambda padre: VistaRaiz(padre, ("Newton-Raphson", "Secante")), "1115x700")
+        from nucleo.ejercicios import TODOS
+        vista.cargar_ejercicio(next(e for e in TODOS if e.clave == "fr3"))
+        self._asentar()
+        tabla = vista.tabla_iteraciones.tabla
+        self.assertGreaterEqual(int(tabla.column("fx", "minwidth")), 120)    # «−2.4581966e−07» completo
 
     # ------------------------------------------------------------ menú
     def test_menu_agrupado_por_parte(self):

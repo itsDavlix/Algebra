@@ -9,6 +9,7 @@
 
 import math
 import tkinter as tk
+from tkinter import font as tkfont
 from tkinter import ttk
 
 from interfaz.ayudas import AyudaEmergente
@@ -64,6 +65,58 @@ def adaptar_cabecera(cabecera, botones, minimo):
             boton.configure(text=icono if compacto else completo, width=2 if compacto else len(completo) + 1,
                             padding=(2, 6) if compacto else "")
     cabecera.bind("<Configure>", ajustar)
+
+
+def tamano_que_cabe(lineas, ancho_px, base, minimo=8, peso="normal", mono=True):
+    """Mayor tamaño de letra (de base a minimo) con el que la línea más larga cabe en ancho_px."""
+    for tamano in range(base, minimo - 1, -1):
+        medida = tkfont.Font(font=fuente(tamano, peso, mono=mono)).measure
+        if max((medida(linea) for linea in lineas), default=0) <= ancho_px:
+            return tamano
+    return minimo
+
+
+def ajustar_letra_de_texto(texto, base, minimo=8, peso="normal", mono=True, permitir_partir=True):
+    """Achica la letra de un tk.Text si su contenido no cabe a lo ancho (sin barra horizontal).
+
+    Si ni con la letra mínima cabe, la línea se parte (wrap) en vez de quedar cortada.
+    """
+    ancho = texto.winfo_width() - 2 * int(texto.cget("padx")) - 6
+    if ancho < 40:
+        return
+    lineas = texto.get("1.0", "end-1c").splitlines()
+    tamano = tamano_que_cabe(lineas, ancho, base, minimo, peso, mono)
+    medida = tkfont.Font(font=fuente(tamano, peso, mono=mono)).measure
+    # Una matriz no se parte (desalinearía las filas); un texto de ecuaciones sí.
+    partir = permitir_partir and max((medida(linea) for linea in lineas), default=0) > ancho
+    if partir:
+        tamano = min(base, minimo + 2)       # partiendo líneas conviene una letra legible
+    estado = (tamano, partir)
+    if getattr(texto, "_tamano_ajustado", None) != estado:
+        texto._tamano_ajustado = estado
+        texto.configure(font=fuente(tamano, peso, mono=mono), wrap="word" if partir else "none")
+
+
+def cabecera_adaptable(encabezado, titulo, acciones, informacion):
+    """Título y acciones en una fila; si no caben (ventana angosta), las acciones bajan a otra.
+
+    La fila de fórmula y descripción (informacion) queda siempre debajo de ambas.
+    """
+    estado = {"abajo": False}
+
+    def ajustar(evento):
+        necesario = titulo.winfo_reqwidth() + acciones.winfo_reqwidth() + 32
+        abajo = evento.width < necesario
+        if abajo == estado["abajo"]:
+            return
+        estado["abajo"] = abajo
+        if abajo:
+            acciones.grid_configure(row=1, column=0, columnspan=3, sticky="w", pady=(8, 0))
+            informacion.grid_configure(row=2)
+        else:
+            acciones.grid_configure(row=0, column=2, columnspan=1, sticky="e", pady=0)
+            informacion.grid_configure(row=1)
+    encabezado.bind("<Configure>", ajustar, add="+")
 
 
 def tabla_a_texto(columnas, filas):
@@ -221,8 +274,18 @@ class TablaPaginada(ttk.Frame):
         self.tabla.tag_configure("final_no", foreground=PALETA["error"])
         self.tabla.tag_configure("destacado", foreground=PALETA["acento_hover"])
         self.tabla.grid(row=1, column=0, sticky="nsew")
+        # Barra horizontal solo cuando las columnas no caben (ventanas angostas, tablas de 7 columnas).
+        self.barra_x = ttk.Scrollbar(self, orient="horizontal", command=self.tabla.xview)
+        self.tabla.configure(xscrollcommand=self._mover_barra_x)
         self.tabla.bind("<<TreeviewSelect>>", self._al_seleccionar)
         self.tabla.bind("<Configure>", self._ajustar_filas)
+
+    def _mover_barra_x(self, primero, ultimo):
+        self.barra_x.set(primero, ultimo)
+        if float(primero) <= 0.0 and float(ultimo) >= 1.0:
+            self.barra_x.grid_remove()
+        else:
+            self.barra_x.grid(row=2, column=0, sticky="ew")
 
     def copiar(self):
         """Todas las filas (no solo la página visible) como texto tabulado."""
@@ -245,7 +308,22 @@ class TablaPaginada(ttk.Frame):
         self.filas = list(filas)
         self.etiquetas = etiquetas
         self.elegido = None
+        self._ajustar_anchos()
         self.ir_a_pagina(0)
+
+    def _ajustar_anchos(self):
+        """Cada columna crece hasta su valor más largo (p. ej. −2.4581966e−07) para no cortarlo
+        ni encimarlo con la siguiente; nunca baja del ancho configurado."""
+        if not self.filas:
+            return
+        medida = tkfont.Font(font=ttk.Style().lookup("Tabla.Treeview", "font") or "TkFixedFont").measure
+        for j, columna in enumerate(self.columnas):
+            clave, _titulo, ancho = columna[:3]
+            largo = max(len(str(fila[j])) for fila in self.filas if j < len(fila))
+            muestra = next(str(fila[j]) for fila in self.filas if j < len(fila) and len(str(fila[j])) == largo)
+            necesario = max(medida(muestra), medida(str(_titulo))) + 22
+            # minwidth = contenido: al repartir el ancho, ninguna columna se encoge por debajo de su valor.
+            self.tabla.column(clave, width=max(ancho, necesario), minwidth=necesario)
 
     def limpiar(self):
         self.filas = []
@@ -285,7 +363,7 @@ class TablaPaginada(ttk.Frame):
             self.al_elegir(self.elegido)
 
     def _ajustar_filas(self, evento):
-        filas = max(3, (evento.height - ALTO_ENCABEZADO_TABLA) // ALTO_FILA)
+        filas = max(2, (evento.height - ALTO_ENCABEZADO_TABLA) // ALTO_FILA)
         if filas == self.por_pagina:
             return
         primero = self.pagina * self.por_pagina

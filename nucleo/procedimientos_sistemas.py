@@ -206,15 +206,16 @@ def detalle_iterativo(resultado, indice):
 
 def comparacion_iterativa(jacobi, seidel):
     def fila(titulo, a, b):
-        return (f"{titulo:<24}{a:>16}{b:>16}", "formula")
+        # Anchos cortos: la tabla debe caber en el panel de procedimiento sin partirse.
+        return (f"{titulo:<12}{a:>10}{b:>10}", "formula")
 
     lineas = [("Comparación Jacobi vs Gauss-Seidel", "titulo"),
-              (f"{'':<24}{'Jacobi':>16}{'Gauss-Seidel':>16}", "tenue"),
+              (f"{'':<12}{'Jacobi':>10}{'G-Seidel':>10}", "tenue"),
               fila("Convergió", "sí" if jacobi.convergio else "no", "sí" if seidel.convergio else "no"),
               fila("Iteraciones", str(len(jacobi.iteraciones)), str(len(seidel.iteraciones))),
               fila("ρ(T)", g(jacobi.radio_espectral, 4) if jacobi.radio_espectral is not None else "—",
                    g(seidel.radio_espectral, 4) if seidel.radio_espectral is not None else "—"),
-              fila("Residuo final", g(jacobi.iteraciones[-1].residuo, 3) if jacobi.iteraciones else "—",
+              fila("Residuo", g(jacobi.iteraciones[-1].residuo, 3) if jacobi.iteraciones else "—",
                    g(seidel.iteraciones[-1].residuo, 3) if seidel.iteraciones else "—"),
               ("", "normal"), ("Verificación cruzada", "titulo")]
     if jacobi.convergio and seidel.convergio:
@@ -386,20 +387,23 @@ def resumen_directo(resultado):
     r = resultado
     v = r.variables
     lineas = [("1. Sistema e incógnitas", "titulo")]
-    lineas += [(ecuacion_texto(fila, bi, v), "formula") for fila, bi in zip(r.A, r.b)]
+    formato = coef if r.exacta else None          # en modo exacto, 1/3 en vez de 0.333333
+    lineas += [(ecuacion_texto(fila, bi, v, formato), "formula") for fila, bi in zip(r.A, r.b)]
     lineas.append((f"Incógnitas: {', '.join(nombre_bonito(x) for x in v)}", "normal"))
     lineas += [("", "normal"), ("2. Forma matricial A·X = B", "titulo")]
     ancho = max(len(coef(a)) for fila in r.A for a in fila)
+    ancho_b = max(len(coef(bi)) for bi in r.b)
     for i, fila in enumerate(r.A):
         entradas = " ".join(coef(a).replace("-", "−").rjust(ancho) for a in fila)
-        x = nombre_bonito(v[i]).ljust(3) if i < len(v) else "   "
-        lineas.append((f"[ {entradas} ]   [ {x} ]   [ {coef(r.b[i]).replace('-', '−'):>5} ]", "formula"))
+        ancho_x = max(len(nombre_bonito(nombre)) for nombre in v)
+        x = nombre_bonito(v[i]).ljust(ancho_x) if i < len(v) else " " * ancho_x
+        # Separaciones cortas para que la forma matricial quepa en el panel sin partirse.
+        lineas.append((f"[ {entradas} ]  [ {x} ]  [ {coef(r.b[i]).replace('-', '−'):>{ancho_b}} ]", "formula"))
     if r.determinante is not None:
         det = r.determinante
         texto_det = coef(float(det)) if det == det else str(det)
-        lineas.append((f"det(A) = {texto_det.replace('-', '−')} "
-                       + ("≠ 0 → la solución es única." if det != 0 else "= 0 → no hay solución única."),
-                       "ok" if det != 0 else "aviso"))
+        lineas.append((f"det(A) = {texto_det.replace('-', '−')} ≠ 0 → la solución es única." if det != 0
+                       else "det(A) = 0 → no hay solución única.", "ok" if det != 0 else "aviso"))
     lineas += [("", "normal"), ("3. Resultado", "titulo")]
     if r.tipo == "incompatible":
         lineas.append(("El sistema es incompatible: no tiene solución.", "error"))

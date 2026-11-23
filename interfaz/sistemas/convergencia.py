@@ -67,4 +67,5 @@ def encuadre(limites):
     x0, x1 = min(xs), max(xs)
     y0, y1 = min(ys), max(ys)
     alto = max(y1 - y0, 1e-6)
-    return x0 - 0.6, x1 + max(1, (x1 - x0) * 0.08), y0 - alto * 0.15, y1 + alto * 0.15
+    # Margen derecho amplio: las etiquetas de método van al final de cada curva.
+    return x0 - 0.6, x1 + max(2, (x1 - x0) * 0.22), y0 - alto * 0.15, y1 + alto * 0.15

@@ -28,6 +28,7 @@ if __package__ is None or __package__ == "":
     if project_root not in sys.path:
         sys.path.insert(0, project_root)
 
+from interfaz.ayudas import AyudaEmergente
 from interfaz.estilos import PALETA, actualizar_widgets, configurar_estilo, fuente, muescas_rueda
 from interfaz.motorGrafica import PlanoCartesiano
 from interfaz.pestanaInicio import PestanaInicio
@@ -39,6 +40,10 @@ from interfaz.vistaRomanos import VistaRomanos
 
 
 PIXELES_POR_MUESCA = 60
+ANCHO_MINIMO = 1180          # por debajo, las vistas de tres columnas recortan tablas y botones
+ANCHO_MENU_COMPACTO = 1320   # bajo este ancho el menú lateral muestra solo abreviaturas
+ABREVIATURAS = {"Inicio": "Ini", "Vectores": "Vec", "Matrices": "Mat", "Sistemas lineales": "Sis",
+                "Bisección / Regula Falsi": "B·RF", "Newton-Raphson / Secante": "N·S", "Números romanos": "Rom"}
 
 SECCIONES = (
     (None, (("Inicio", lambda padre: PestanaInicio(padre)),)),
@@ -62,16 +67,24 @@ class ElementoNavegacion(tk.Frame):
 
     def __init__(self, padre, texto, al_elegir):
         super().__init__(padre, background=PALETA["lateral"], cursor="hand2")
+        self.texto = texto
         self.activo = False
         self.indicador = tk.Frame(self, width=3, background=PALETA["lateral"])
         self.indicador.pack(side="left", fill="y")
         self.etiqueta = tk.Label(self, text=texto, anchor="w", font=fuente(10), padx=12, pady=6,
                                  background=PALETA["lateral"], foreground=PALETA["texto_suave"])
         self.etiqueta.pack(side="left", fill="x", expand=True)
+        self.ayuda = AyudaEmergente(self.etiqueta, "")
         for widget in (self, self.etiqueta):
             widget.bind("<Button-1>", lambda _e: al_elegir())
-            widget.bind("<Enter>", lambda _e: self._pintar(encima=True))
-            widget.bind("<Leave>", lambda _e: self._pintar())
+            widget.bind("<Enter>", lambda _e: (self._pintar(encima=True), self.ayuda._mostrar()), add="+")
+            widget.bind("<Leave>", lambda _e: (self._pintar(), self.ayuda._ocultar()), add="+")
+
+    def compactar(self, compacto):
+        """En ventanas angostas: abreviatura con el nombre completo al pasar el cursor."""
+        self.etiqueta.configure(text=ABREVIATURAS.get(self.texto, self.texto[:3]) if compacto else self.texto,
+                                padx=8 if compacto else 12)
+        self.ayuda.texto = self.texto if compacto else ""
 
     def marcar(self, activo):
         self.activo = activo
@@ -163,9 +176,10 @@ class CalculadoraAlgebraLineal(tk.Tk):
         super().__init__()
         self.title("Iterum · Álgebra lineal y métodos numéricos")
         ancho_pantalla, alto_pantalla = self.winfo_screenwidth(), self.winfo_screenheight()
-        ancho = min(1500, max(980, int(ancho_pantalla * 0.9)))
+        ancho = min(1500, max(ANCHO_MINIMO, int(ancho_pantalla * 0.9)))
+        ancho = min(ancho, ancho_pantalla)
         alto = min(1000, max(640, int(alto_pantalla * 0.9)))
-        self.minsize(min(1000, ancho), min(640, alto))
+        self.minsize(min(ANCHO_MINIMO, ancho_pantalla), min(640, alto))
         self.geometry(f"{ancho}x{alto}+{max(0, (ancho_pantalla - ancho) // 2)}+"
                       f"{max(0, (alto_pantalla - alto) // 2)}")
         configurar_estilo(ttk.Style(self))
@@ -208,28 +222,56 @@ class CalculadoraAlgebraLineal(tk.Tk):
         lateral = tk.Frame(self, background=PALETA["lateral"], width=214)
         lateral.pack(side="left", fill="y")
         lateral.pack_propagate(False)
+        self.lateral = lateral
+        self._compacto = None
+        self._textos_largos = []
         tk.Frame(self, background=PALETA["borde"], width=1).pack(side="left", fill="y")
         marca = tk.Frame(lateral, background=PALETA["lateral"])
         marca.pack(fill="x", padx=16, pady=(20, 18))
-        tk.Label(marca, text="Iterum", font=fuente(14, "bold"), background=PALETA["lateral"],
-                 foreground=PALETA["texto"]).pack(anchor="w")
-        tk.Label(marca, text="Álgebra lineal y métodos numéricos", font=fuente(9),
-                 background=PALETA["lateral"], foreground=PALETA["texto_tenue"]).pack(anchor="w")
+        nombre_app = tk.Label(marca, text="Iterum", font=fuente(14, "bold"), background=PALETA["lateral"],
+                              foreground=PALETA["texto"])
+        nombre_app.pack(anchor="w")
+        self._textos_largos.append((nombre_app, "Iterum", "It"))
+        subtitulo = tk.Label(marca, text="Álgebra lineal y métodos numéricos", font=fuente(9),
+                             background=PALETA["lateral"], foreground=PALETA["texto_tenue"])
+        subtitulo.pack(anchor="w")
+        self._textos_largos.append((subtitulo, "Álgebra lineal y métodos numéricos", ""))
         for titulo, elementos in SECCIONES:
             if titulo:
-                tk.Label(lateral, text=titulo, font=fuente(8, "bold"), background=PALETA["lateral"],
-                         foreground=PALETA["texto_tenue"], anchor="w", padx=16).pack(fill="x", pady=(14, 4))
+                seccion = tk.Label(lateral, text=titulo, font=fuente(8, "bold"), background=PALETA["lateral"],
+                                   foreground=PALETA["texto_tenue"], anchor="w", padx=16)
+                seccion.pack(fill="x", pady=(14, 4))
+                self._textos_largos.append((seccion, titulo, ""))
             for nombre, _ in elementos:
                 elemento = ElementoNavegacion(lateral, nombre, lambda n=nombre: self.mostrar(n))
                 elemento.pack(fill="x", padx=(0, 8))
                 self.elementos[nombre] = elemento
-        tk.Label(lateral, text="Python estándar · sin bibliotecas externas", font=fuente(8),
-                 background=PALETA["lateral"], foreground=PALETA["texto_tenue"], anchor="w",
-                 padx=16, wraplength=190, justify="left").pack(side="bottom", fill="x", pady=14)
+        pie = tk.Label(lateral, text="Python estándar · sin bibliotecas externas", font=fuente(8),
+                       background=PALETA["lateral"], foreground=PALETA["texto_tenue"], anchor="w",
+                       padx=16, wraplength=190, justify="left")
+        pie.pack(side="bottom", fill="x", pady=14)
+        self._textos_largos.append((pie, "Python estándar · sin bibliotecas externas", ""))
+        self.bind("<Configure>", self._al_redimensionar, add="+")
         self.area = ttk.Frame(self)
         self.area.pack(side="left", fill="both", expand=True)
         self.area.rowconfigure(0, weight=1)
         self.area.columnconfigure(0, weight=1)
+
+    def _al_redimensionar(self, evento):
+        if evento.widget is not self:
+            return
+        compacto = evento.width < ANCHO_MENU_COMPACTO
+        if compacto == self._compacto:
+            return
+        self._compacto = compacto
+        # Menú compacto: deja ~150 px más para tablas y gráficas en pantallas pequeñas.
+        self.lateral.configure(width=64 if compacto else 214)
+        for etiqueta, largo, corto in self._textos_largos:
+            etiqueta.configure(text=corto if compacto else largo)
+            if etiqueta.master is self.lateral:
+                etiqueta.configure(padx=8 if compacto else 16)
+        for elemento in self.elementos.values():
+            elemento.compactar(compacto)
 
     def _fabrica(self, nombre):
         for _, elementos in SECCIONES:

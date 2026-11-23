@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from interfaz.campoMatematico import CampoValor
-from interfaz.componentes import MenuEjercicios, PanelProcedimiento, SelectorSegmentado, TablaPaginada, tarjeta
+from interfaz.componentes import ajustar_letra_de_texto, MenuEjercicios, PanelProcedimiento, SelectorSegmentado, TablaPaginada, tarjeta
 from interfaz.estilos import PALETA, fuente
 from nucleo.determinantes import recomendar_metodo
 from nucleo.ejercicios import MATRICES_BANCO, ejercicios_de
@@ -135,6 +135,7 @@ class VistaMatrices(ttk.Frame):
                              highlightthickness=0, cursor="arrow")
         self.valor.colores_propios = True
         self.valor.grid(row=2, column=0, sticky="nsew")
+        self.valor.bind("<Configure>", lambda _e: ajustar_letra_de_texto(self.valor, 12, 7, permitir_partir=False), add="+")
         self.tabla = TablaPaginada(zona, "PASOS", al_elegir=self._al_elegir_paso,
                                    titulo_ventana=lambda: f"Pasos · {self.operacion}")
         self.tabla.configurar_columnas((("n", "n", 44), ("paso", "Operación", 300, "w")))
@@ -237,6 +238,7 @@ class VistaMatrices(ttk.Frame):
         self.valor.delete("1.0", "end")
         self.valor.insert("1.0", texto)
         self.valor.configure(state="disabled")
+        ajustar_letra_de_texto(self.valor, 12, 7, permitir_partir=False)    # A⁻¹ con fracciones: que se vea completa
         self.tabla.definir_filas([(i + 1, titulo_paso(p)) for i, p in enumerate(r.pasos)])
         self.panel.mostrar(self._resumen())
 

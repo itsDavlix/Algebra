@@ -152,7 +152,7 @@ class PruebasVistas(unittest.TestCase):
         vista.a.set("XX")
         vista.b.set("IV")
         self.assertEqual(vista.valor.cget("text"), "V")
-        self.assertIn("COMPROBACIÓN", vista.panel.completo()[-1][0] + "".join(t for t, _ in vista.panel.completo()))
+        self.assertIn("Comprobar", "".join(t for t, _ in vista.panel.completo()))
         vista.b.set("")
         self.assertIsNone(vista.resultado)
 

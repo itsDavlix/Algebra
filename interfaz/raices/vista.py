@@ -12,6 +12,7 @@ from tkinter import ttk
 
 from interfaz.campoMatematico import CampoMatematico, CampoValor, texto_atajos
 from interfaz.componentes import (
+    cabecera_adaptable,
     MenuEjercicios, PanelProcedimiento, SelectorSegmentado, TablaPaginada, tarjeta as crear_tarjeta,
 )
 from interfaz.estilos import PALETA, fuente
@@ -90,30 +91,36 @@ class VistaRaiz(GraficaMixin, ResultadosMixin, ttk.Frame):
     # ================================================================ diseño
     def _construir_encabezado(self):
         encabezado = ttk.Frame(self)
-        encabezado.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        encabezado.grid(row=0, column=0, sticky="ew", pady=(0, 8))
         encabezado.columnconfigure(1, weight=1)
         self.titulo = ttk.Label(encabezado, text=self.metodo, style="Titulo.TLabel")
         self.titulo.grid(row=0, column=0, sticky="w")
+        # Fórmula y descripción en su propia fila, a todo el ancho: en la fila del título
+        # competían con los botones y se cortaban.
         informacion = ttk.Frame(encabezado)
-        informacion.grid(row=0, column=1, sticky="ew", padx=(16, 12))
+        informacion.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(4, 0))
+        informacion.columnconfigure(2, weight=1)
+        # Columna 0: selector de método (se coloca más abajo, si la vista tiene varios métodos).
         self.etiqueta_formula = ttk.Label(informacion, text="", style="Formula.TLabel")
-        self.etiqueta_formula.pack(anchor="w")
+        self.etiqueta_formula.grid(row=0, column=1, sticky="w", padx=(0, 14))
         self.etiqueta_descripcion = ttk.Label(informacion, text="", style="Tenue.TLabel", justify="left")
-        self.etiqueta_descripcion.pack(anchor="w", fill="x")
-        informacion.bind("<Configure>", lambda e: self.etiqueta_descripcion.configure(
-            wraplength=max(160, e.width - 4)))
+        self.etiqueta_descripcion.grid(row=0, column=2, sticky="ew")
+        informacion.bind("<Configure>", lambda e: self.etiqueta_descripcion.configure(wraplength=max(
+            200, e.width - self.etiqueta_formula.winfo_reqwidth() - (self.selector.winfo_reqwidth()
+                                                                   if self.selector else 0) - 40)))
         acciones = ttk.Frame(encabezado)
         acciones.grid(row=0, column=2, sticky="e")
         self.selector = None
         if len(self.metodos) > 1:
             # Control segmentado para alternar métodos sin perder la función ni la gráfica.
-            self.selector = SelectorSegmentado(acciones, self.metodos, self.cambiar_metodo)
-            self.selector.pack(side="left", padx=(0, 12))
+            self.selector = SelectorSegmentado(informacion, self.metodos, self.cambiar_metodo)
+            self.selector.grid(row=0, column=0, sticky="w", padx=(0, 16))
             ttk.Button(acciones, text="Comparar ambos", command=self.comparar).pack(side="left", padx=(0, 6))
         self.menu_ejercicios = MenuEjercicios(acciones, ejercicios_de(self.metodos), self.cargar_ejercicio)
         self.menu_ejercicios.pack(side="left", padx=(0, 6))
         ttk.Button(acciones, text="Ejemplo", command=self.cargar_ejemplo).pack(side="left", padx=(0, 6))
         ttk.Button(acciones, text="Limpiar", command=self.limpiar).pack(side="left")
+        cabecera_adaptable(encabezado, self.titulo, acciones, informacion)
 
     def _construir_funcion(self):
         self.tarjeta_funcion = crear_tarjeta(self, row=1, column=0, sticky="ew", pady=(0, 10))
@@ -227,7 +234,8 @@ class VistaRaiz(GraficaMixin, ResultadosMixin, ttk.Frame):
         tarjeta = crear_tarjeta(self.lateral, row=1, column=0, sticky="nsew", pady=(10, 0))
         tarjeta.configure(padding=(14, 10))
         tarjeta.columnconfigure(0, weight=1)
-        tarjeta.rowconfigure(1, weight=1)
+        # minsize: encabezado + 2 filas; si falta alto, se recorta la explicación, no la lista.
+        tarjeta.rowconfigure(1, weight=1, minsize=82)
         ttk.Label(tarjeta, text="PUNTOS NOTABLES EN LA VISTA", style="Panel.Seccion.TLabel").grid(
             row=0, column=0, sticky="w", pady=(0, 6))
         self.tabla_notables = ttk.Treeview(tarjeta, columns=("tipo", "x", "y"), show="headings",
@@ -243,6 +251,7 @@ class VistaRaiz(GraficaMixin, ResultadosMixin, ttk.Frame):
                                      "inflexiones. Haz clic en uno para centrarlo.",
                                      style="Panel.Ayuda.TLabel", wraplength=340, justify="left")
         self.explicacion.grid(row=2, column=0, sticky="ew", pady=(8, 0))
+        tarjeta.bind("<Configure>", lambda e: self.explicacion.configure(wraplength=max(200, e.width - 32)), add="+")
 
     def _construir_tarjeta_resultado(self):
         tarjeta = crear_tarjeta(self.resultados, row=0, column=0, sticky="nsew", padx=(0, 12))

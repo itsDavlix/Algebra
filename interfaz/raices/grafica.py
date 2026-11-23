@@ -148,7 +148,8 @@ class GraficaMixin:
             valores = sorted(v for v in (evaluar(self.funcion, centro0 + (centro1 - centro0) * i / 80)
                                          for i in range(81)) if v is not None)
             if valores:
-                ys += [valores[len(valores) // 10], valores[(9 * len(valores)) // 10]]
+                # Percentiles 20–80 %: una asíntota (p. ej. e^(1/x) cerca de 0) no aplasta la curva.
+                ys += [valores[len(valores) // 5], valores[(4 * len(valores)) // 5]]
         y0, y1 = min(ys), max(ys)
         alto_minimo = (x1 - x0) * 0.25
         if y1 - y0 < alto_minimo:
@@ -161,7 +162,9 @@ class GraficaMixin:
         self._ajustando_vista = False
 
     def _al_cambiar_vista(self, vista):
-        if not self._ajustando_vista:
+        # El plano avisa 250 ms después de cualquier cambio, también de un encuadre automático:
+        # solo cuenta como vista manual si la persona hizo zoom o arrastró.
+        if not self._ajustando_vista and not self.plano.ajuste_automatico:
             self._vista_manual = True
         self._recalcular_notables()
 

@@ -149,21 +149,27 @@ def nombre_bonito(variable):
     return re.sub(r"\d+", lambda m: m.group(0).translate(str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")), variable)
 
 
-def ecuacion_texto(fila, termino, variables):
-    """Escribe una fila como ecuación legible: 10x₁ − x₂ + 2x₃ = 6."""
+def ecuacion_texto(fila, termino, variables, formato=None):
+    """Escribe una fila como ecuación legible: 10x₁ − x₂ + 2x₃ = 6.
+
+    formato(valor) → texto del número (p. ej. fracciones «1/3» en modo exacto); por defecto «:g».
+    """
+    formato = formato or (lambda valor: f"{valor:g}")
     partes = []
     for coeficiente, variable in zip(fila, variables):
         if coeficiente == 0:
             continue
         magnitud = abs(coeficiente)
-        texto_coef = "" if magnitud == 1 else f"{magnitud:g}"
+        texto_coef = "" if magnitud == 1 else formato(magnitud)
+        if "/" in texto_coef:
+            texto_coef = f"({texto_coef})"
         signo = "−" if coeficiente < 0 else "+"
         if not partes:
             partes.append(("−" if coeficiente < 0 else "") + texto_coef + nombre_bonito(variable))
         else:
             partes.append(f" {signo} {texto_coef}{nombre_bonito(variable)}")
     izquierda = "".join(partes) or "0"
-    return f"{izquierda} = {termino:g}".replace("-", "−")
+    return f"{izquierda} = {formato(termino)}".replace("-", "−")
 
 
 def leer_matriz_texto(texto, nombre="A"):

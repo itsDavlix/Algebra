@@ -11,7 +11,7 @@ from tkinter import ttk
 from interfaz.campoMatematico import CampoValor
 from interfaz.ayudas import AyudaEmergente
 from interfaz.componentes import (
-    MenuEjercicios, PanelProcedimiento, SelectorSegmentado, TablaPaginada, tarjeta,
+    ajustar_letra_de_texto, cabecera_adaptable, tamano_que_cabe, MenuEjercicios, PanelProcedimiento, SelectorSegmentado, TablaPaginada, tarjeta,
 )
 from interfaz.dibujos import admite_plano_sistema, dibujo_sistema, encuadre_proporcional
 from interfaz.estilos import PALETA, fuente
@@ -75,24 +75,32 @@ class VistaSistemas(ttk.Frame):
     # ================================================================ diseño
     def _construir_encabezado(self):
         encabezado = ttk.Frame(self)
-        encabezado.grid(row=0, column=0, sticky="ew", pady=(0, 10))
+        encabezado.grid(row=0, column=0, sticky="ew", pady=(0, 8))
         encabezado.columnconfigure(1, weight=1)
-        ttk.Label(encabezado, text="Sistemas lineales A·X = B", style="Titulo.TLabel").grid(row=0, column=0, sticky="w")
-        info = ttk.Frame(encabezado)
-        info.grid(row=0, column=1, sticky="ew", padx=(16, 12))
-        self.etiqueta_formula = ttk.Label(info, style="Formula.TLabel")
-        self.etiqueta_formula.pack(anchor="w")
-        self.etiqueta_descripcion = ttk.Label(info, style="Tenue.TLabel", justify="left")
-        self.etiqueta_descripcion.pack(anchor="w", fill="x")
-        info.bind("<Configure>", lambda e: self.etiqueta_descripcion.configure(wraplength=max(160, e.width - 4)))
+        titulo = ttk.Label(encabezado, text="Sistemas lineales A·X = B", style="Titulo.TLabel")
+        titulo.grid(row=0, column=0, sticky="w")
+        # Fórmula y descripción en su propia fila, a todo el ancho: en la fila del título
+        # competían con los botones y se cortaban.
+        informacion = ttk.Frame(encabezado)
+        informacion.grid(row=1, column=0, columnspan=3, sticky="ew", pady=(4, 0))
+        informacion.columnconfigure(2, weight=1)
+        # Columna 0: selector de método (se coloca más abajo, si la vista tiene varios métodos).
+        self.etiqueta_formula = ttk.Label(informacion, text="", style="Formula.TLabel")
+        self.etiqueta_formula.grid(row=0, column=1, sticky="w", padx=(0, 14))
+        self.etiqueta_descripcion = ttk.Label(informacion, text="", style="Tenue.TLabel", justify="left")
+        self.etiqueta_descripcion.grid(row=0, column=2, sticky="ew")
+        informacion.bind("<Configure>", lambda e: self.etiqueta_descripcion.configure(wraplength=max(
+            200, e.width - self.etiqueta_formula.winfo_reqwidth() - (self.selector.winfo_reqwidth()
+                                                                   if self.selector else 0) - 40)))
         acciones = ttk.Frame(encabezado)
         acciones.grid(row=0, column=2, sticky="e")
-        self.selector = SelectorSegmentado(acciones, METODOS, self.cambiar_metodo)
-        self.selector.pack(side="left", padx=(0, 12))
+        self.selector = SelectorSegmentado(informacion, METODOS, self.cambiar_metodo)
+        self.selector.grid(row=0, column=0, sticky="w", padx=(0, 16))
         ttk.Button(acciones, text="Comparar J / GS", command=self.comparar).pack(side="left", padx=(0, 6))
         MenuEjercicios(acciones, ejercicios_de(METODOS), self.cargar_ejercicio).pack(side="left", padx=(0, 6))
         ttk.Button(acciones, text="Ejemplo", command=self.cargar_ejemplo).pack(side="left", padx=(0, 6))
         ttk.Button(acciones, text="Limpiar", command=self.limpiar).pack(side="left")
+        cabecera_adaptable(encabezado, titulo, acciones, informacion)
 
     def _construir_cuerpo(self):
         cuerpo = ttk.Frame(self)
@@ -114,6 +122,9 @@ class VistaSistemas(ttk.Frame):
         self.texto.colores_propios = True
         self.texto.grid(row=1, column=0, sticky="nsew")
         self.texto.bind("<<Modified>>", self._al_modificar)
+        # Ecuaciones largas (fracciones, 5×5): la letra se achica para que se vean completas.
+        self.texto.bind("<Configure>", lambda _e: ajustar_letra_de_texto(self.texto, 12, 8), add="+")
+        entrada.bind("<Configure>", self._al_redimensionar_entrada, add="+")
         # Matriz aumentada con la diagonal resaltada y, a la derecha, |aᵢᵢ| frente a Σ|aᵢⱼ|.
         self.vista_previa = tk.Text(entrada, height=1, width=1, wrap="none", font=fuente(10, mono=True),
                                     background=PALETA["tarjeta"], foreground=PALETA["texto"], relief="flat",
@@ -282,7 +293,7 @@ class VistaSistemas(ttk.Frame):
         zona.columnconfigure(0, minsize=250)
         zona.columnconfigure(1, weight=3)
         zona.columnconfigure(2, weight=2, minsize=320)
-        tarjeta_resultado = tarjeta(zona, row=0, column=0, sticky="nsew", padx=(0, 12))
+        tarjeta_resultado = tarjeta(zona, padding=(14, 10), row=0, column=0, sticky="nsew", padx=(0, 12))
         cabecera_resultado = ttk.Frame(tarjeta_resultado, style="Panel.TFrame")
         cabecera_resultado.pack(fill="x")
         cabecera_resultado.columnconfigure(0, weight=1)
@@ -346,10 +357,16 @@ class VistaSistemas(ttk.Frame):
             self._reiniciar_resultado()
 
     # ================================================================ entrada y análisis
+    def _al_redimensionar_entrada(self, evento):
+        if abs(evento.width - getattr(self, "_ancho_entrada", 0)) > 4:
+            self._ancho_entrada = evento.width
+            self._pintar_matriz()
+
     def _al_modificar(self, _evento=None):
         if not self.texto.edit_modified():
             return
         self.texto.edit_modified(False)
+        ajustar_letra_de_texto(self.texto, 12, 8)
         if self._escribiendo:
             return
         self.reordenado = ()  # la persona editó el sistema: ya no es el orden reordenado
@@ -366,6 +383,7 @@ class VistaSistemas(ttk.Frame):
         self.texto.delete("1.0", "end")
         self.texto.insert("1.0", texto)
         self.texto.edit_modified(False)
+        ajustar_letra_de_texto(self.texto, 12, 8)
         self._escribiendo = False
         self._analizar()
 
@@ -451,10 +469,22 @@ class VistaSistemas(ttk.Frame):
         if dominancia:
             leyenda = "diagonal en color · ceros en rojo · |aᵢᵢ| vs Σ|aᵢⱼ|"
             texto.insert("end", leyenda, "tenue")
-            largo = max(largo, len(leyenda))
+            # La leyenda va en letra normal (≈ 0.7 del ancho monoespaciado): no debe ensanchar el cuadro.
+            largo = max(largo, int(len(leyenda) * 0.7))
             lineas += 1
         else:
             texto.delete("end-2c", "end-1c")
+        # Letra de 10 a 7 puntos según quepa en la tarjeta (las fracciones y la columna de
+        # dominancia hacen las filas largas).
+        disponible = getattr(self, "_ancho_entrada", 0) - 30
+        filas = texto.get("1.0", "end-1c").splitlines()
+        if dominancia:
+            filas = filas[:-1]          # la leyenda usa la letra normal (más angosta): no cuenta
+        tamano = tamano_que_cabe(filas, disponible, 10, 7) if disponible > 100 else 10
+        texto.configure(font=fuente(tamano, mono=True))
+        texto.tag_configure("diagonal", font=fuente(tamano, "bold", mono=True))
+        texto.tag_configure("cero", font=fuente(tamano, "bold", mono=True))
+        texto.tag_configure("tenue", font=fuente(max(7, tamano - 1)))
         texto.configure(state="disabled", width=largo, height=lineas)
 
     def _mostrar_analisis(self):
@@ -468,8 +498,8 @@ class VistaSistemas(ttk.Frame):
                 return self._validar("Jacobi y Gauss-Seidel necesitan tantas ecuaciones como incógnitas.", "error")
             return self._validar("Gauss-Jordan clasificará el sistema (única, infinitas o incompatible).", "ok")
         det = determinante(A, "lu")
-        lineas.append(f"det(A) = {ps.coef(float(det)).replace('-', '−')}"
-                      + ("  ≠ 0 → solución única" if det != 0 else "  = 0 → sin solución única"))
+        lineas.append(f"det(A) = {ps.coef(float(det)).replace('-', '−')}  ≠ 0 → solución única" if det != 0
+                      else "det(A) = 0 → sin solución única")
         if self.metodo == "Gauss-Jordan":
             self.analisis.configure(text="\n".join(lineas))
             return self._validar("✓ Listo para Gauss-Jordan." if det != 0 else
@@ -585,6 +615,8 @@ class VistaSistemas(ttk.Frame):
             self.estado.configure(text=textos[r.tipo], style="Panel.Exito.TLabel" if r.tipo == "unica" else "Panel.Error.TLabel")
             solucion = r.solucion
             datos = [f"{len(r.pasos)} pasos de eliminación"]
+            if r.tipo == "infinitas":
+                datos.insert(0, "Solución particular (libres = 0); la general, en el procedimiento")
             if r.solucion:
                 datos.append(f"residuo ‖b − AX‖∞ = {ps.g(r.residuo, 3)}")
             self.tabla.definir_filas([(i + 1, ps.titulo_paso(p)) for i, p in enumerate(r.pasos)])
@@ -601,11 +633,13 @@ class VistaSistemas(ttk.Frame):
                 ["final_ok" if r.convergio else "final_no"] if i == total else []))
             self.panel.mostrar(self.comparacion or ps.resumen_iterativo(r))
         exacta = getattr(r, "exacta", ()) if directo else ()
+        n = len(self.variables)
+        # Con más incógnitas la letra baja un punto para que la tarjeta no se desborde.
+        self.valor.configure(font=fuente(13 if n <= 4 else 12 if n <= 6 else 10, "bold", mono=True))
         self.valor.configure(text="\n".join(
             f"{nombre_bonito(v)} = {str(q).replace('-', '−') if exacta else ps.g(x, 10)}"
             for v, x, q in zip(self.variables, solucion, exacta or solucion)) or "—")
-        if exacta:
-            datos.insert(0, "Exacta: ≈ decimales en el procedimiento")
+        # El selector «1/4» ya indica el modo exacto; los decimales están en el procedimiento.
         self.datos.configure(text="\n".join(d for d in datos if d))
         self._dibujar_grafica()
 

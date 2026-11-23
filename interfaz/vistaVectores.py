@@ -144,6 +144,7 @@ class VistaVectores(ttk.Frame):
         self.estado = ttk.Label(marco, text="Sin calcular", style="Panel.Pendiente.TLabel")
         self.estado.pack(anchor="w", pady=(6, 4))
         self.valor = ttk.Label(marco, style="Panel.Formula.TLabel", justify="left", wraplength=320,
+                               foreground=PALETA["texto"],
                                font=fuente(14, "bold", mono=True))
         self.valor.pack(anchor="w")
         self.tabla = TablaPaginada(zona, "PASOS", al_elegir=self._al_elegir_paso,

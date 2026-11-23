@@ -169,7 +169,7 @@ class ResultadosMixin:
         error = "—" if r.error is None else f"{r.error:.3g}"
         lineas = [f"residuo |f(x)| = {abs(r.valor_funcion):.3g}", f"error = {error}", f"iteraciones = {len(r.iteraciones)}"]
         if self.metodo == "Bisección":
-            lineas.append(f"teóricas = {r.iteraciones_teoricas}")
+            lineas[-1] += f"  (teóricas: {r.iteraciones_teoricas})"     # una línea menos en la tarjeta
         self.datos.configure(text="\n".join(lineas).replace("-", "−"))
         motivo = r.motivo
         if getattr(r, "advertencia", ""):
