@@ -110,7 +110,7 @@ class PruebasBiseccion(unittest.TestCase):
     def test_dominio_invalido_y_discontinuidad_muestreada(self):
         for funcion, a, b in (("sqrt(x)", -1, 2), ("1/x", -1, 1),
                               ("log(x)", 0, 2), ("exp(x)-1", 1000, 1001)):
-            with self.subTest(funcion=funcion), self.assertRaisesRegex(ValueError, "evaluar f"):
+            with self.subTest(funcion=funcion), self.assertRaisesRegex(ValueError, "no es continua|evaluar f"):
                 resolver_biseccion(funcion, a, b)
 
     def test_intervalos_grandes_sin_desbordar_el_punto_medio(self):

@@ -133,5 +133,71 @@ class PruebasProcedimiento(unittest.TestCase):
         self.assertNotAlmostEqual(seidel[1].x[0], 0.830182, places=4)  # diapositiva 21: x₁⁽²⁾
 
 
+class PruebasDiagnostico(unittest.TestCase):
+    CINCO = ("2x2 - 3x3 + x4 + 4x5 = -18\n3x1 + 2x3 - 4x4 + x5 = 6\n-2x1 + 5x2 + 3x4 - 2x5 = -2\n"
+             "4x1 - x2 + 3x3 - 3x5 = 24\nx1 - 3x2 - 2x3 + 5x4 = 4")
+
+    def test_diagonal_nula_cinco_por_cinco(self):
+        """Ejercicio de clase: Gauss-Jordan con 4 intercambios, Jacobi diverge, Gauss-Seidel solo reordenando."""
+        from nucleo.diagnostico import FUNCIONA, NO_FUNCIONA, REORDENAR, diagnosticar
+        _, A, b = leer_sistema(self.CINCO)
+        gj, jacobi, seidel = diagnosticar(A, b)
+        self.assertEqual((gj.estado, jacobi.estado, seidel.estado), (FUNCIONA, NO_FUNCIONA, REORDENAR))
+        self.assertIn("4 intercambios", gj.detalle)
+        self.assertGreater(jacobi.rho, 1)
+        self.assertEqual(seidel.permutacion, (1, 2, 0, 4, 3))
+        A2 = [A[p] for p in seidel.permutacion]
+        b2 = [b[p] for p in seidel.permutacion]
+        real = resolver_iterativo(A2, b2, "Gauss-Seidel", tolerancia=1e-6, max_iteraciones=200)
+        self.assertTrue(real.convergio)
+        self.assertLess(abs(seidel.iteraciones - len(real.iteraciones)), 15)   # la estimación es orientativa
+        for valor, exacto in zip(real.solucion, (2, -1, 3, 1, -2)):
+            self.assertAlmostEqual(valor, exacto, places=5)
+
+    def test_dominante_y_singular(self):
+        from nucleo.diagnostico import FUNCIONA, NO_FUNCIONA, diagnosticar, iteraciones_estimadas
+        _, A, b = leer_sistema(GUIA)
+        self.assertTrue(all(v.estado == FUNCIONA for v in diagnosticar(A, b)))
+        self.assertIn("dominante", diagnosticar(A, b)[1].breve)
+        singular = diagnosticar([[1, 1], [2, 2]], [1, 2])
+        self.assertEqual([v.estado for v in singular[1:]], [NO_FUNCIONA, NO_FUNCIONA])
+        self.assertEqual(iteraciones_estimadas(0.5, 1e-6), 20)    # 0.5²⁰ ≈ 9.5·10⁻⁷
+        self.assertIsNone(iteraciones_estimadas(1.2, 1e-6))
+
+
+class PruebasGaussJordanExplicado(unittest.TestCase):
+    CINCO = PruebasDiagnostico.CINCO
+
+    def setUp(self):
+        self.variables, self.A, self.b = leer_sistema(self.CINCO)
+        self.r = ps.resolver_directo(self.A, self.b, self.variables)
+
+    def test_cada_eliminacion_muestra_su_propio_estado(self):
+        """Antes, todos los pasos de una columna mostraban la matriz ya eliminada por completo."""
+        eliminaciones = [p for p in self.r.pasos if "Eliminar la entrada" in p.splitlines()[0]]
+        matrices = [tuple(l for l in p.splitlines() if l.startswith("[")) for p in eliminaciones]
+        self.assertEqual(len(set(matrices)), len(matrices))
+        primera = matrices[0]                       # F2 ← F2 − 3F1: F3 aún conserva su −2 inicial
+        self.assertTrue(primera[2].replace(" ", "").startswith("[−2"))
+
+    def test_pivotes_intercambios_y_determinante(self):
+        self.assertEqual(self.r.intercambios, 4)
+        self.assertEqual(len(self.r.pivotes), 5)
+        producto = (-1) ** self.r.intercambios
+        for _f, _c, valor in self.r.pivotes:
+            producto *= valor
+        self.assertAlmostEqual(producto, float(self.r.determinante), places=8)
+        texto = "\n".join(l for l, _ in ps.resumen_directo(self.r))
+        self.assertIn("(−1)⁴", texto)
+        self.assertIn("✓ Coincide con det(A)", texto)
+        self.assertIn("a₁₁ = 0 no sirve de pivote", self.r.pasos[1])
+
+    def test_verificacion_sustituyendo(self):
+        texto = "\n".join(l for l, _ in ps.resumen_directo(self.r))
+        self.assertIn("Ec. 1: 2(−1) − 3(3) + 1 + 4(−2) = −18 ✓", texto)
+        self.assertIn("Ec. 4: 4(2) − (−1) + 3(3) − 3(−2) = 24 ✓", texto)
+        self.assertEqual(ps.sustitucion_ecuacion([0, 0], [1, 2]), "0")
+
+
 if __name__ == "__main__":
     unittest.main()

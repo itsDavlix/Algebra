@@ -9,12 +9,10 @@ class PruebasPolosBiseccion(unittest.TestCase):
     """Distingue polos detectables de raíces con residuo grande."""
 
     def test_polos_no_convergen(self):
-        """Marca como discontinuidades posibles los polos pedidos."""
-        for expresion, a, b in (("tan(x)", 1, 2), ("1/(x-0.3)", 0, 1)):
-            with self.subTest(expresion=expresion):
-                resultado = resolver_biseccion(expresion, a, b)
-                self.assertFalse(resultado.convergio)
-                self.assertIn("discontinuidad", resultado.motivo.lower())
+        """Un polo dentro de [a, b] se rechaza antes de iterar: Bolzano exige continuidad."""
+        for expresion, a, b, punto in (("tan(x)", 1, 2, "1.5708"), ("1/(x-0.3)", 0, 1, "0.3")):
+            with self.subTest(expresion=expresion), self.assertRaisesRegex(ValueError, f"no es continua.*{punto}"):
+                resolver_biseccion(expresion, a, b)
 
     def test_raices_escalada_y_multiple_si_convergen(self):
         """No rechaza una raíz por tener magnitudes funcionales grandes o pequeñas."""

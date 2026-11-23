@@ -76,7 +76,7 @@ class RevisionMatematica(unittest.TestCase):
                 self.assertFalse(any("✗" in paso for paso in pasos))
 
     def test_matriz_mostrada_conserva_componentes_de_distinta_escala(self):
-        self.assertEqual(matriz_a_texto([[1e12], [1]]).splitlines()[1], "[ 1 ]")
+        self.assertEqual(matriz_a_texto([[1e12], [1]]).splitlines()[1].replace(" ", ""), "[1]")
 
     def test_solucion_directa_conserva_precision(self):
         from nucleo.procedimientos_sistemas import resolver_directo

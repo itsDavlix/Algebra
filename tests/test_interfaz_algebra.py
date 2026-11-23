@@ -51,6 +51,23 @@ class PruebasVistas(unittest.TestCase):
         self.assertIn("Coinciden", vista.panel.texto.get("1.0", "end"))
         self.assertTrue(vista.plano.capas)
 
+    def test_diagnostico_y_matriz_con_diagonal(self):
+        vista = self._vista(VistaSistemas)
+        vista.establecer_texto("2x2 - 3x3 + x4 + 4x5 = -18\n3x1 + 2x3 - 4x4 + x5 = 6\n"
+                               "-2x1 + 5x2 + 3x4 - 2x5 = -2\n4x1 - x2 + 3x3 - 3x5 = 24\nx1 - 3x2 - 2x3 + 5x4 = 4")
+        self.raiz.update()
+        self.assertEqual(len(vista.vista_previa.tag_ranges("cero")), 10)      # los cinco aᵢᵢ = 0
+        self.assertIn("0 ≤ 10 ✗", vista.vista_previa.get("1.0", "end"))
+        marcas = [f[1].cget("text")[0] for f in vista.filas_diagnostico.values()]
+        self.assertEqual(marcas, ["✓", "✗", "↻"])
+        vista.usar_metodo_recomendado("Jacobi")
+        self.assertIn("Usa Gauss-Jordan o Gauss-Seidel", vista.validacion.cget("text"))
+        vista.usar_metodo_recomendado("Gauss-Seidel")                         # reordena solo
+        self.assertEqual(vista.reordenado, (1, 2, 0, 4, 3))
+        self.assertEqual(vista.vista_previa.tag_ranges("cero"), ())
+        vista.resolver()
+        self.assertTrue(vista.resultado.convergio)
+
     def test_sistemas_reordenar_y_ejercicios(self):
         vista = self._vista(VistaSistemas)
         ejercicio = next(e for e in SISTEMAS if e.clave == "it_banco9")

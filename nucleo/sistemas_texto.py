@@ -4,6 +4,7 @@ Acepta, una ecuación por línea:
     -3x - y + 4z + 5w = -6          (variables de una letra)
     10x₁ − x₂ + 2x₃ = 6             (variables con subíndice: x1, x₁, x_1)
     2.5a + b/2 = 1                  (decimales y fracciones como coeficientes)
+    (1/2)x₂ − (1/3)w = 7/5          (coeficientes entre paréntesis, como en los documentos)
 o filas numéricas «a₁ a₂ … aₙ | b» (o con el término independiente al final).
 """
 
@@ -12,11 +13,15 @@ from fractions import Fraction
 
 _SUBINDICES = str.maketrans("₀₁₂₃₄₅₆₇₈₉", "0123456789")
 _VARIABLE = r"[a-zA-Z](?:_?\d+)?"
+_DECIMAL = r"(?:\d+(?:\.\d+)?|\.\d+)"
+_FRACCION = _DECIMAL + r"(?:/" + _DECIMAL + r")?"
+# Coeficiente suelto (3, 2.5, 1/3) o entre paréntesis ((1/2), (−3/4)), como se copian de Word.
+_COEFICIENTE = r"\([+-]?" + _FRACCION + r"\)|" + _FRACCION
 _TERMINO = re.compile(
-    r"([+-])?\s*(\d+(?:\.\d+)?(?:/\d+(?:\.\d+)?)?|\.\d+)?\s*\*?\s*(" + _VARIABLE + r")"
-    r"(?:\s*/\s*(\d+(?:\.\d+)?))?"
+    r"([+-])?\s*(" + _COEFICIENTE + r")?\s*\*?\s*(" + _VARIABLE + r")"
+    r"(?:\s*/\s*(" + _DECIMAL + r"))?"
 )
-_NUMERO = re.compile(r"[+-]?\s*(?:\d+(?:\.\d+)?|\.\d+)(?:/\d+(?:\.\d+)?)?")
+_NUMERO = re.compile(r"([+-])?(" + _COEFICIENTE + r")")
 
 
 def _normalizar(texto):
@@ -25,13 +30,21 @@ def _normalizar(texto):
 
 
 def _numero(texto):
+    """Valor exacto (Fraction) de 3, −2.5, 1/3, (1/2) o (−3/4): 0.75 es 3/4 exactamente."""
     texto = texto.replace(" ", "")
+    signo = 1
+    if texto[:1] in "+-":
+        signo, texto = (-1 if texto[0] == "-" else 1), texto[1:]
+    if texto.startswith("(") and texto.endswith(")"):
+        texto = texto[1:-1]
+        if texto[:1] in "+-":
+            signo, texto = signo * (-1 if texto[0] == "-" else 1), texto[1:]
     if "/" in texto:
         numerador, denominador = texto.split("/")
-        if float(denominador) == 0:
+        if Fraction(denominador) == 0:
             raise ValueError("Hay una división entre cero en un coeficiente.")
-        return float(Fraction(numerador)) / float(Fraction(denominador))
-    return float(texto)
+        return signo * Fraction(numerador) / Fraction(denominador)
+    return signo * Fraction(texto)
 
 
 def _nombre(variable):
@@ -50,20 +63,20 @@ def _lado(texto, numero_linea):
     texto = texto.strip()
     if not texto:
         raise ValueError(f"Línea {numero_linea}: falta un lado de la ecuación.")
-    coeficientes, constante = {}, 0.0
+    coeficientes, constante = {}, Fraction(0)
     posicion = 0
     sin_espacios = texto.replace(" ", "")
     while posicion < len(sin_espacios):
         termino = _TERMINO.match(sin_espacios, posicion)
         if termino and termino.end() > posicion:
             signo, coeficiente, variable, divisor = termino.groups()
-            valor = _numero(coeficiente) if coeficiente else 1.0
+            valor = _numero(coeficiente) if coeficiente else Fraction(1)
             if divisor:
                 valor /= _numero(divisor)
             if signo == "-":
                 valor = -valor
             nombre = _nombre(variable)
-            coeficientes[nombre] = coeficientes.get(nombre, 0.0) + valor
+            coeficientes[nombre] = coeficientes.get(nombre, 0) + valor
             posicion = termino.end()
             continue
         numero = _NUMERO.match(sin_espacios, posicion)
@@ -76,13 +89,17 @@ def _lado(texto, numero_linea):
     return coeficientes, constante
 
 
-def leer_sistema(texto):
-    """Devuelve (variables, A, b). Lanza ValueError con la línea del problema."""
+def leer_sistema(texto, exacto=False):
+    """Devuelve (variables, A, b). Lanza ValueError con la línea del problema.
+
+    Con exacto=True, A y b son Fraction (0.75 → 3/4, 181/60 tal cual) para operar
+    sin redondeo; por defecto son float, como siempre.
+    """
     lineas = [linea.strip() for linea in _normalizar(texto).splitlines() if linea.strip()]
     if not lineas:
         raise ValueError("Escribe el sistema: una ecuación por línea, por ejemplo 2x + y = 3.")
     if all("=" not in linea and re.search(r"[a-zA-Z]", linea) is None for linea in lineas):
-        return _leer_matriz_aumentada(lineas)
+        return _convertir(*_leer_matriz_aumentada(lineas), exacto)
     filas = []
     for numero_linea, linea in enumerate(lineas, 1):
         if linea.count("=") != 1:
@@ -92,14 +109,20 @@ def leer_sistema(texto):
         cd, kd = _lado(derecha, numero_linea)
         coeficientes = dict(ci)
         for variable, valor in cd.items():
-            coeficientes[variable] = coeficientes.get(variable, 0.0) - valor
+            coeficientes[variable] = coeficientes.get(variable, 0) - valor
         filas.append((coeficientes, kd - ki))
     variables = sorted({v for coeficientes, _ in filas for v in coeficientes}, key=_orden_natural)
     if not variables:
         raise ValueError("No se encontraron incógnitas en el sistema.")
-    A = [[coeficientes.get(v, 0.0) for v in variables] for coeficientes, _ in filas]
-    b = [termino for _, termino in filas]
-    return variables, A, b
+    A = [[Fraction(coeficientes.get(v, 0)) for v in variables] for coeficientes, _ in filas]
+    b = [Fraction(termino) for _, termino in filas]
+    return _convertir(variables, A, b, exacto)
+
+
+def _convertir(variables, A, b, exacto):
+    if exacto:
+        return variables, A, b
+    return variables, [[float(a) for a in fila] for fila in A], [float(x) for x in b]
 
 
 def _leer_matriz_aumentada(lineas):

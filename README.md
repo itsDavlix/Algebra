@@ -8,6 +8,13 @@ Pruebas: `python -m unittest discover -s tests -v`.
 
 - Paleta única grafito con tinte morado, definida en `interfaz/estilos.py` (`PALETA`). No hay modo claro: cada color tiene un significado fijo.
 - **Para presentar resultados**: cada tabla y cada procedimiento tienen **⧉ Copiar** (la tabla completa sale tabulada y se pega directo en Excel o Word; el procedimiento sale como texto plano). En ventanas estrechas los botones pasan a solo icono con ayuda al pasar el cursor.
+- **Diagnóstico en Sistemas lineales**: al escribir el sistema aparece el veredicto de los tres métodos (✓ funciona, ↻ funciona reordenando, ✗ no funciona) con su dato clave: det(A) e intercambios de fila para Gauss-Jordan; ρ(T), el mejor orden de ecuaciones y las iteraciones estimadas (k ≈ log ε / log ρ) para Jacobi y Gauss-Seidel. Al pasar el cursor se ve la explicación completa; con un clic se usa ese método y, si hace falta, se reordenan las ecuaciones. La búsqueda automática de orden llega a 6 ecuaciones; con 7, «Reordenar filas» la hace a pedido.
+- **Matriz aumentada con la diagonal resaltada**: los aᵢᵢ en color, los ceros de la diagonal en rojo y, a la derecha de cada fila, |aᵢᵢ| frente a Σ|aᵢⱼ| (dominancia diagonal con números, no solo ✓/✗).
+- **Gauss-Jordan explicado**: cada intercambio dice por qué se hace (pivote nulo o pivoteo parcial: el mayor |aᵢⱼ| de la columna) y cada normalización nombra su pivote. Cada paso muestra la matriz tal como queda tras *esa* operación, también en la inversa y el rango. El resumen lista los pivotes, los intercambios y comprueba det(A) = (−1)ˢ · ∏ pivotes; la verificación sustituye la solución en cada ecuación: «Ec. 1: 2(−1) − 3(3) + 1 + 4(−2) = −18 ✓».
+- **Texto del banco tal cual**: se pueden pegar coeficientes como `(1/2)x₂` o `−(1/3)w`, el guion «–», superíndices (`eˣ`, `x⁴`, `e⁻ˣ`) y el punto como producto (`x.e^(−x)`). Una igualdad se ve como `f(x) = izq − (der) = 0`; si aparece `e(…)`, la vista previa avisa de un posible exponente perdido sin impedir resolver.
+- **Dominio antes de iterar**: Bisección y Falsa posición rechazan un intervalo con un polo, un punto fuera del dominio o un hueco, y explican cuál («x = 1 está fuera del dominio… Bolzano no aplica»).
+- **Fracciones exactas**: en Gauss-Jordan, el selector «0.25 | 1/4» de la tarjeta de resultado cambia entre decimales y fracciones exactas (hasta 10 incógnitas con datos racionales): pasos en fracciones, solución p/q ≈ decimal y residuo 0.
+- **Ejercicios por Parte del banco**: el menú «Ejercicios ▾» agrupa por Parte I–IV (y la clase de Jacobi/Gauss-Seidel) y, dentro, por dificultad; cada ejercicio muestra su número (P1-E9).
 - **Plano para álgebra lineal**: en Sistemas lineales, el modo **Plano** dibuja las dos rectas de un sistema 2×2, su intersección y, con Jacobi o Gauss-Seidel, el camino de las aproximaciones. En Vectores (R²), **◇ Ver en el plano** muestra suma (paralelogramo), resta, escalar, norma y el ángulo del producto punto, con la misma escala en ambos ejes.
 - **Números romanos** se calcula al escribir, con el equivalente decimal de cada número y avisos en línea (sin ventanas emergentes).
 - Menú lateral por categorías: Inicio · Álgebra lineal (Vectores, Matrices, Sistemas lineales) · Raíces de ecuaciones (Bisección / Regula Falsi y Newton-Raphson / Secante) · Otros (Números romanos). Cada vista se crea la primera vez que se abre.
@@ -107,19 +114,16 @@ Las tres vistas usan el mismo diseño que las de raíces: operación, datos, res
 
 ## Ejercicios guardados
 
-**Ejercicios ▾** (en cada vista) carga ejercicios ordenados por dificultad (básico, intermedio, avanzado). Cada uno indica el método recomendado, los valores iniciales y la justificación, porque en el banco la elección del método se evalúa. Todos se verifican en `tests/test_ejercicios.py` con tolerancia 10⁻⁶.
+**Ejercicios ▾** (en cada vista) carga los **49 ejercicios del banco** agrupados por Parte y por dificultad, con su número (P1-E9). Cada uno indica el método recomendado, los valores iniciales y la justificación, porque en el banco la elección del método se evalúa. `tests/test_banco_completo.py` los recorre todos: en el núcleo (fórmula, pasos, tolerancia 10⁻⁶, ≥ 8 cifras y comprobación contra un cálculo independiente con fracciones) y en la interfaz (cada uno se carga en su vista y se resuelve sin errores).
 
-- **Raíces:** las 10 ecuaciones de la Parte III del banco, repartidas por método:
-  - Bisección: x³ − 4x − 9 en [2, 3]; eˣ − 3x² en [0, 1].
-  - Regula Falsi: x·ln x − 1; ln(x + 2) + x² − 2.
-  - Newton-Raphson: x³ + x − 1; x⁴ − 3x² − 3; cos x − x·eˣ; x² − 5 sin x.
-  - Secante: e^(−x) − x² + 0.5; x·e^(−x) − 0.2.
-- **Gauss-Jordan:** los 10 sistemas de la Parte I.
-- **Jacobi / Gauss-Seidel:** el sistema guía y la actividad en parejas de la clase, más tres casos del banco:
-  - Sistema 9: hay que reordenar.
-  - Sistema 10: converge con Gauss-Seidel y no con Jacobi.
-  - Sistema 1: ρ ≈ 2, no converge.
-- **Matrices:** las 10 matrices de la Parte II (det(A) e inversa).
+- **Parte I · 19 sistemas** con Gauss-Jordan. Los que piden aritmética exacta o la aconsejan (P1-E12, 13, 14, 15, 17, 19) se cargan en fracciones. P1-E14 tiene infinitas soluciones (rango 3). Variantes iterativas:
+  - P1-E9, E10 y E11: Gauss-Seidel tras reordenar (en E10 y E11 Jacobi no converge en ningún orden).
+  - P1-E17: Jacobi converge más rápido que Gauss-Seidel (ρ ≈ 0.54 frente a 0.63).
+  - P1-E1: Jacobi diverge (ρ ≈ 2).
+- **Parte II · 10 matrices:** det(A), A⁻¹ y A·A⁻¹ = I₄.
+- **Parte III · 15 ecuaciones:** E1–E10 con el método justificado; E11–E15 con el método que sugiere el banco.
+- **Parte IV · 5 ecuaciones fraccionarias o compuestas**, con su dominio. P4-E2 y P4-E5 no traen lado derecho en el documento: se toman como «= 0» (igualdad supuesta, indicada en el enunciado) y se resuelven por despeje exacto y numéricamente. P4-E2 (raíz triple) se guarda también con falsa posición como contraejemplo de estancamiento.
+- **Clase de Jacobi y Gauss-Seidel:** el sistema guía y la actividad en parejas.
 
 Al validar los documentos se encontraron errores en algunas diapositivas paso a paso. Las tablas de iteraciones son correctas; la calculadora reproduce las tablas.
 

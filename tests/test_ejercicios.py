@@ -29,8 +29,10 @@ class PruebasCatalogo(unittest.TestCase):
     def test_estructura(self):
         claves = [e.clave for e in TODOS]
         self.assertEqual(len(claves), len(set(claves)))
-        self.assertEqual(len(RAICES), 10)
-        self.assertEqual(len(MATRICES), 10)
+        documentos = {e.documento for e in TODOS if e.documento}
+        self.assertEqual(len(documentos), 49)                        # los 49 ejercicios del banco
+        for parte, cantidad in (("P1", 19), ("P2", 10), ("P3", 15), ("P4", 5)):
+            self.assertEqual(sum(1 for d in documentos if d.startswith(parte + "-")), cantidad)
         for ejercicio in TODOS:
             self.assertIn(ejercicio.dificultad, NIVELES)
             self.assertTrue(ejercicio.justificacion and ejercicio.fuente)
@@ -45,6 +47,9 @@ class PruebasRaices(unittest.TestCase):
         for ejercicio in RAICES:
             with self.subTest(ejercicio=ejercicio.clave):
                 r = resolver_raiz(ejercicio)
+                if ejercicio.esperado.get("converge") is False:       # contraejemplo guardado a propósito
+                    self.assertFalse(r.convergio)
+                    continue
                 self.assertTrue(r.convergio, r.motivo)
                 self.assertAlmostEqual(r.raiz, ejercicio.esperado["raiz"], delta=TOLERANCIA * 2)
                 self.assertLessEqual(len(r.iteraciones), 25)
@@ -55,8 +60,10 @@ class PruebasSistemas(unittest.TestCase):
         for ejercicio in [e for e in SISTEMAS if e.metodo == "Gauss-Jordan"]:
             with self.subTest(ejercicio=ejercicio.clave):
                 variables, A, b = leer_sistema(ejercicio.datos["sistema"])
-                r = resolver_directo(A, b, variables)
-                self.assertEqual(r.tipo, "unica")
+                r = resolver_directo(A, b, variables, exacto=ejercicio.datos.get("exacto", False))
+                self.assertEqual(r.tipo, ejercicio.esperado.get("tipo", "unica"))
+                if r.tipo != "unica":
+                    continue
                 for valor, esperado in zip(r.solucion, ejercicio.esperado["solucion"]):
                     self.assertAlmostEqual(valor, esperado, places=9)
                 self.assertLess(r.residuo, 1e-9)

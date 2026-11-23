@@ -5,6 +5,7 @@ con nivel en «pendiente», «ok», «aviso» o «error». La vista solo la mues
 """
 
 from interfaz.raices.configuracion import evaluar
+from nucleo.analisis import comprobar_continuidad
 from nucleo.biseccion import MAX_ITERACIONES, iteraciones_necesarias
 
 
@@ -39,6 +40,9 @@ def _validar_cerrado(metodo, f, valores, tolerancia, iteraciones):
         return "f no está definida en " + ("a." if fa is None else "b."), "error"
     if fa == 0 or fb == 0:
         return "✓ Uno de los extremos ya es una raíz.", "ok"
+    discontinuidad = comprobar_continuidad(f, a, b)
+    if discontinuidad:
+        return discontinuidad, "error"
     if (fa < 0) == (fb < 0):
         return (f"f(a) = {fa:.6g} y f(b) = {fb:.6g} tienen el mismo signo: no se cumple Bolzano. "
                 "Elige otro intervalo o pulsa «Sugerir valores».", "error")

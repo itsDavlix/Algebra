@@ -29,7 +29,17 @@ def d(valor, decimales=CIFRAS):
 
 
 def g(valor, cifras=8):
-    return f"{valor:.{cifras}g}".replace("-", "−")
+    return f"{float(valor):.{cifras}g}".replace("-", "−")
+
+
+def exacto_y_decimal(valor, cifras=10):
+    """«3/4» para un entero o decimal corto; «162683/104610 ≈ 1.555138132» si la fracción no es obvia."""
+    if not isinstance(valor, Fraction):
+        return g(valor, cifras)
+    if valor.denominator == 1:
+        return str(valor.numerator).replace("-", "−")
+    texto = f"{valor.numerator}/{valor.denominator}".replace("-", "−")
+    return f"{texto} ≈ {g(valor, cifras)}"
 
 
 def coef(valor):
@@ -262,6 +272,9 @@ class ResultadoDirecto:
     pasos: tuple
     residuos: tuple
     determinante: object
+    pivotes: tuple = ()       # (fila, columna, valor) antes de normalizar
+    intercambios: int = 0
+    exacta: tuple = ()        # solución en Fraction cuando se operó con fracciones
 
     @property
     def convergio(self):
@@ -272,21 +285,101 @@ class ResultadoDirecto:
         return max((abs(r) for r in self.residuos), default=0.0)
 
 
-def resolver_directo(A, b, variables):
-    """Resuelve por Gauss-Jordan, conserva los pasos y verifica sustituyendo en A·X = b."""
+MAXIMO_EXACTO = 10   # con más incógnitas los denominadores crecen demasiado para leerlos
+
+
+def _a_fraccion(valor):
+    """Fracción exacta de un dato: 0.75 → 3/4; 0.1 (float) → 1/10, no 3602879701896397/36028797018963968."""
+    if isinstance(valor, Fraction):
+        return valor
+    fraccion = Fraction(valor).limit_denominator(10 ** 9)
+    return fraccion if abs(float(fraccion) - valor) <= 1e-15 * max(1.0, abs(valor)) else None
+
+
+def puede_ser_exacto(A, b):
+    """Se opera con fracciones si n ≤ 10 y todos los datos son racionales «de escritura» (decimales finitos o p/q)."""
+    if len(A[0]) > MAXIMO_EXACTO:
+        return False
+    return all(_a_fraccion(v) is not None for fila in A for v in fila) and all(_a_fraccion(v) is not None for v in b)
+
+
+def _limpiar_cero(valor, escala):
+    """−8.88·10⁻¹⁶ es un 0 que el redondeo ensució: se muestra 0."""
+    return 0.0 if abs(valor) <= 1e-12 * max(1.0, escala) else valor
+
+
+def resolver_directo(A, b, variables, exacto=False):
+    """Resuelve por Gauss-Jordan, conserva los pasos y verifica sustituyendo en A·X = b.
+
+    exacto=True opera con fracciones (Fraction) cuando los datos lo permiten (ver
+    puede_ser_exacto); la solución se da como fracción y como decimal.
+    """
+    exacto = exacto and puede_ser_exacto(A, b)
+    if exacto:
+        A = [[_a_fraccion(v) for v in fila] for fila in A]
+        b = [_a_fraccion(v) for v in b]
     from nucleo.determinantes import determinante
     from nucleo.sistemas import ErrorSistemaIncompatible, resolver_sistema_gauss_jordan_con_pasos
 
     det = determinante(A, "lu") if len(A) == len(A[0]) else None
+    registro = {}
     try:
-        solucion, tipo, _pivotes, pasos = resolver_sistema_gauss_jordan_con_pasos(A, [[v] for v in b])
+        solucion, tipo, _pivotes, pasos = resolver_sistema_gauss_jordan_con_pasos(
+            A, [[v] for v in b], registro=registro, nombres=[nombre_bonito(v) for v in variables])
     except ErrorSistemaIncompatible as exc:
-        return ResultadoDirecto(tuple(variables), tuple(map(tuple, A)), tuple(b), (), "incompatible",
+        return ResultadoDirecto(tuple(variables), tuple(tuple(float(v) for v in fila) for fila in A),
+                                tuple(float(v) for v in b), (), "incompatible",
                                 tuple(exc.pasos) + (f"CONCLUSIÓN. {exc}",), (), det)
-    x = [fila[0] for fila in solucion]
-    residuos = tuple(bi - sum(a * xj for a, xj in zip(fila, x)) for fila, bi in zip(A, b))
-    return ResultadoDirecto(tuple(variables), tuple(map(tuple, A)), tuple(b), tuple(x), tipo, tuple(pasos),
-                            residuos, det)
+    exacta = tuple(fila[0] for fila in solucion) if exacto else ()
+    escala = max((abs(float(v)) for v in b), default=1.0)
+    x = [_limpiar_cero(float(fila[0]), escala) for fila in solucion]
+    residuos = tuple(float(bi - sum(a * xj for a, xj in zip(fila, exacta or x))) for fila, bi in zip(A, b))
+    return ResultadoDirecto(tuple(variables), tuple(tuple(float(v) for v in fila) for fila in A),
+                            tuple(float(v) for v in b), tuple(x), tipo, tuple(pasos), residuos, det,
+                            tuple(registro.get("pivotes", ())), registro.get("intercambios", 0), exacta)
+
+
+def sustitucion_ecuacion(fila, x):
+    """2x₂ − 3x₃ … evaluado: «2(−1) − 3(3) + 1 + 4(−2)» (se omiten los coeficientes 0)."""
+    partes = []
+    for a, valor in zip(fila, x):
+        if a == 0:
+            continue
+        numero = g(valor, 10)
+        numero = f"({numero})" if valor < 0 else numero
+        magnitud = coef(abs(a))
+        magnitud = f"({magnitud})" if "/" in magnitud else magnitud
+        termino = numero if magnitud == "1" else f"{magnitud}({numero.strip('()')})" if valor >= 0 else f"{magnitud}{numero}"
+        signo = "−" if a < 0 else "+"
+        partes.append((signo, termino))
+    if not partes:
+        return "0"
+    primero = ("−" if partes[0][0] == "−" else "") + partes[0][1]
+    return " ".join([primero] + [f"{signo} {termino}" for signo, termino in partes[1:]])
+
+
+def lineas_pivotes(resultado):
+    """Pivotes elegidos, intercambios y la comprobación det(A) = (−1)^s · ∏ pivotes."""
+    r = resultado
+    if not r.pivotes:
+        return []
+    lineas = []
+    for fila, columna, valor in r.pivotes:
+        lineas.append((f"Columna {columna + 1}: pivote {exacto_y_decimal(valor, 8)} (en F{fila + 1})", "formula"))
+    lineas.append((f"Intercambios de fila: {r.intercambios}", "normal"))
+    n = len(r.A)
+    if r.determinante is not None and len(r.pivotes) == n:
+        producto = (-1) ** r.intercambios
+        for _f, _c, valor in r.pivotes:
+            producto *= valor
+        factores = "".join(f"({g(v, 6)})" for _f, _c, v in r.pivotes)
+        signo = "(−1)" + str(r.intercambios).translate(str.maketrans("0123456789", "⁰¹²³⁴⁵⁶⁷⁸⁹"))
+        coincide = abs(producto - float(r.determinante)) <= 1e-8 * max(1.0, abs(float(r.determinante)))
+        lineas.append((f"det(A) = {signo} · {factores} = {exacto_y_decimal(producto)}", "formula"))
+        lineas.append(("✓ Coincide con det(A): cada intercambio cambia el signo y cada normalización divide "
+                       "entre el pivote." if coincide else "⚠ No coincide con det(A) calculado por LU.",
+                       "ok" if coincide else "aviso"))
+    return lineas
 
 
 def resumen_directo(resultado):
@@ -314,13 +407,22 @@ def resumen_directo(resultado):
         if r.tipo == "infinitas":
             lineas.append(("Infinitas soluciones: se muestra una solución particular (variables libres = 0).",
                            "aviso"))
-        for nombre, valor in zip(v, r.solucion):
-            lineas.append((f"{nombre_bonito(nombre)} = {g(valor, 10)}", "formula"))
-        lineas += [("", "normal"), ("4. Verificación: se sustituye X en cada ecuación", "titulo")]
+        if r.exacta:
+            lineas.append(("Se operó con fracciones exactas: no hay error de redondeo.", "normal"))
+        for nombre, valor in zip(v, r.exacta or r.solucion):
+            lineas.append((f"{nombre_bonito(nombre)} = {exacto_y_decimal(valor)}", "formula"))
+        pivotes = lineas_pivotes(r)
+        if pivotes:
+            lineas += [("", "normal"), ("4. Pivotes y determinante", "titulo")] + pivotes
+        lineas += [("", "normal"), (f"{5 if pivotes else 4}. Verificación: se sustituye X en cada ecuación",
+                                    "titulo")]
+        escala = max(1.0, max(abs(x) for x in r.b))
         for i, (fila, bi) in enumerate(zip(r.A, r.b)):
             suma = sum(a * x for a, x in zip(fila, r.solucion))
-            lineas.append((f"Ecuación {i + 1}: {g(suma, 10)} = {g(bi, 10)}   (residuo {g(r.residuos[i], 2)})",
-                           "formula"))
+            cumple = abs(r.residuos[i]) <= 1e-9 * escala
+            final = "✓" if cumple else f"≠ {g(bi, 10)} ✗"
+            lineas.append((f"Ec. {i + 1}: {sustitucion_ecuacion(fila, r.solucion)} = {g(suma, 10)} {final}",
+                           "formula" if cumple else "aviso"))
         lineas.append(("✓ A·X = B se cumple." if r.residuo <= 1e-9 * max(1.0, max(abs(x) for x in r.b))
                        else "⚠ El residuo no es despreciable: revisa el sistema.",
                        "ok" if r.residuo <= 1e-9 * max(1.0, max(abs(x) for x in r.b)) else "aviso"))

@@ -127,9 +127,21 @@ def nombres_disponibles():
 
 _SUSTITUCIONES = (
     ("−", "-"), ("–", "-"), ("×", "*"), ("·", "*"), ("⋅", "*"), ("÷", "/"),
-    ("π", "pi"), ("≤", "<="), ("≥", ">="), ("≠", "!="), ("²", "^2"), ("³", "^3"),
+    ("π", "pi"), ("≤", "<="), ("≥", ">="), ("≠", "!="),
     ("√", " sqrt "), ("∛", " cbrt "),
 )
+# Superíndices como los copia Word: x⁴ → x^(4), eˣ → e^(x), e⁻ˣ → e^(-x), x⁽¹ᐟ²⁾ → x^((1/2)).
+_SUPER_A_TEXTO = dict(zip("⁰¹²³⁴⁵⁶⁷⁸⁹⁺⁻⁽⁾ˣᐟ", "0123456789+-()x/"))
+_TRAMO_SUPERINDICE = re.compile("[" + "".join(_SUPER_A_TEXTO) + "]+")
+# Punto entre letras o tras un paréntesis: «x.e^(-x)» es un producto (no un decimal).
+_PUNTO_PRODUCTO = re.compile(r"(?<=[A-Za-z)])\.(?=\s*[A-Za-z(])")
+# «e(−x)» suele ser e^(−x) que perdió el formato al copiar; se lee como e·(−x) pero se avisa.
+_EXPONENTE_PERDIDO = re.compile(r"(?<![A-Za-z_])e\s*\(")
+
+
+def _superindices_a_potencia(texto):
+    return _TRAMO_SUPERINDICE.sub(
+        lambda m: "^(" + "".join(_SUPER_A_TEXTO[c] for c in m.group(0)) + ")", texto)
 _TOKEN = re.compile(
     r"\s*(?:(?P<num>(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)"
     r"|(?P<id>[A-Za-z_][A-Za-z_0-9]*)"
@@ -261,6 +273,7 @@ def normalizar(texto):
         raise ValueError(f"La expresión es demasiado larga (máximo {LONGITUD_MAXIMA} caracteres).")
     for original, reemplazo in _SUSTITUCIONES:
         texto = texto.replace(original, reemplazo)
+    texto = _PUNTO_PRODUCTO.sub("*", _superindices_a_potencia(texto))
     tokens = _clasificar(_tokenizar(texto))
     if tokens.count(("op", "(")) != tokens.count(("op", ")")):
         faltan = tokens.count(("op", "(")) - tokens.count(("op", ")"))
@@ -741,12 +754,13 @@ def a_texto(nodo, bonito=False):
 class Expresion:
     """Función real de x lista para evaluar, derivar y mostrar."""
 
-    def __init__(self, arbol, es_igualdad=False, limitar=True):
+    def __init__(self, arbol, es_igualdad=False, limitar=True, aviso=""):
         # Las derivadas pueden crecer más que la entrada; solo se limita lo escrito.
         if limitar and sum(1 for _ in ast.walk(arbol)) > NODOS_MAXIMOS:
             raise ValueError("La expresión es demasiado compleja. Simplifícala.")
         self.arbol = arbol
         self.es_igualdad = es_igualdad
+        self.aviso = aviso        # advertencia no bloqueante sobre cómo se leyó el texto
         self._evaluar = _compilar(arbol)
         self._derivada = None
 
@@ -792,13 +806,36 @@ class Expresion:
         return self._derivada
 
 
+def _constante(nodo):
+    """Valor de un nodo que es un número (o −número); None si no lo es."""
+    if isinstance(nodo, ast.Constant):
+        return nodo.value
+    if isinstance(nodo, ast.UnaryOp) and isinstance(nodo.op, ast.USub) and isinstance(nodo.operand, ast.Constant):
+        return -nodo.operand.value
+    return None
+
+
 def analizar(texto):
-    """Convierte el texto en una Expresion. Una igualdad A = B pasa a A − B."""
+    """Convierte el texto en una Expresion. Una igualdad A = B pasa a A − B.
+
+    Con lado derecho constante se simplifica: A = 0 → A,  A = −0.1 → A + 0.1.
+    """
     izquierda, derecha = normalizar(texto)
     arbol = _canonico(_analizar_lado(izquierda))
     if derecha is not None:
-        arbol = ast.BinOp(arbol, ast.Sub(), _canonico(_analizar_lado(derecha)))
-    return Expresion(arbol, es_igualdad=derecha is not None)
+        lado = _canonico(_analizar_lado(derecha))
+        valor = _constante(lado)
+        if valor == 0:
+            pass
+        elif valor is not None and valor < 0:
+            arbol = ast.BinOp(arbol, ast.Add(), ast.Constant(-valor))
+        else:
+            arbol = ast.BinOp(arbol, ast.Sub(), lado)
+    aviso = ""
+    if _EXPONENTE_PERDIDO.search(texto.replace("−", "-")):
+        aviso = ("«e(…)» se leyó como e·(…). Si es una potencia que perdió el formato al copiarla, "
+                 "escríbela como e^(…).")
+    return Expresion(arbol, es_igualdad=derecha is not None, aviso=aviso)
 
 
 def evaluar_valor(texto, contexto="El valor"):

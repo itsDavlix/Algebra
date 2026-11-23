@@ -119,6 +119,17 @@ def resumen(metodo, resultado):
     lineas.append(("Convergencia alcanzada." if resultado.convergio
                    else "Sin convergencia: el último valor no se acepta como raíz.", estado))
     lineas.append((f"Motivo de parada: {resultado.motivo}", "normal"))
+    if resultado.convergio and resultado.raiz is not None:
+        valor = getattr(resultado, "valor_funcion", None)
+        residuo = abs(valor) if valor is not None else None
+        lineas.append((f"Raíz aproximada: x ≈ {n(resultado.raiz)}   ({len(resultado.iteraciones)} iteraciones)",
+                       "formula"))
+        if residuo is not None:
+            lineas.append((f"Comprobación: |f(x)| = {n(residuo)}", "formula"))
+            if metodo == "Bisección" and residuo > resultado.tolerancia:
+                lineas.append((f"La cota en x cumple la tolerancia, pero |f(x)| = {n(residuo)} > {n(resultado.tolerancia)}: "
+                               "f es empinada cerca de la raíz, así que un error pequeño en x da un |f| mayor. "
+                               "El error en x sigue acotado por (b − a)/2.", "aviso"))
     advertencia = getattr(resultado, "advertencia", "")
     if advertencia:
         lineas.append((advertencia, "aviso"))

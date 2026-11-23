@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Optional
 
 from nucleo.biseccion import MAX_ITERACIONES, _numero, preparar_funcion
+from nucleo.analisis import comprobar_continuidad
 from nucleo.numeros import asegurar_finito
 
 
@@ -83,6 +84,9 @@ def resolver_reglafalsa(ecuacion, a, b, tolerancia=1e-6, max_iteraciones=100):
     funcion, expresion = preparar_funcion(ecuacion)
     intervalo_inicial = (a, b)
     iteraciones = []
+    discontinuidad = comprobar_continuidad(funcion, a, b)
+    if discontinuidad:
+        raise ValueError(discontinuidad)
 
     def crear_resultado(raiz, valor, error, convergio, motivo):
         extremo_estancado = ""

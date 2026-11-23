@@ -387,13 +387,37 @@ class MenuEjercicios(ttk.Menubutton):
         self["menu"] = self.menu
         self.definir(ejercicios, al_elegir)
 
-    def definir(self, ejercicios, al_elegir):
-        self.menu.delete(0, "end")
+    def _submenu(self):
+        return tk.Menu(self.menu, tearoff=False, background=PALETA["tarjeta"], foreground=PALETA["texto"],
+                       activebackground=PALETA["acento_suave"], activeforeground=PALETA["texto"], font=fuente(10))
+
+    @staticmethod
+    def _llenar(menu, ejercicios, al_elegir):
+        """Encabezados por dificultad; cada ejercicio con su número del banco (P1-E9) si lo tiene."""
         nivel_actual = None
+        repetidos = {e.documento for e in ejercicios if getattr(e, "documento", "")
+                     and sum(1 for o in ejercicios if getattr(o, "documento", "") == e.documento) > 1}
         for ejercicio in ejercicios:
             if ejercicio.dificultad != nivel_actual:
                 if nivel_actual is not None:
-                    self.menu.add_separator()
+                    menu.add_separator()
                 nivel_actual = ejercicio.dificultad
-                self.menu.add_command(label=ejercicio.dificultad.upper(), state="disabled")
-            self.menu.add_command(label=f"   {ejercicio.titulo}", command=lambda e=ejercicio: al_elegir(e))
+                menu.add_command(label=ejercicio.dificultad.upper(), state="disabled")
+            prefijo = f"{ejercicio.documento} · " if getattr(ejercicio, "documento", "") else ""
+            sufijo = f" · {ejercicio.metodo}" if getattr(ejercicio, "documento", "") in repetidos else ""
+            menu.add_command(label=f"   {prefijo}{ejercicio.titulo}{sufijo}", command=lambda e=ejercicio: al_elegir(e))
+
+    def definir(self, ejercicios, al_elegir):
+        """Un submenú por Parte del banco (y uno para la clase); si hay una sola, la lista va directa."""
+        self.menu.delete(0, "end")
+        ejercicios = sorted(ejercicios, key=lambda e: getattr(e, "orden", (0, 0, 0)))
+        grupos = {}
+        for ejercicio in ejercicios:
+            grupos.setdefault(getattr(ejercicio, "parte", ""), []).append(ejercicio)
+        if len(grupos) <= 1:
+            self._llenar(self.menu, ejercicios, al_elegir)
+            return
+        for parte, lista in grupos.items():
+            submenu = self._submenu()
+            self._llenar(submenu, lista, al_elegir)
+            self.menu.add_cascade(label=f"{parte}  ({len(lista)})", menu=submenu)

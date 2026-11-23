@@ -2,6 +2,7 @@
 
 import math
 import re
+from fractions import Fraction
 
 EPSILON = 1e-10
 
@@ -24,6 +25,13 @@ def asegurar_finito(numero, contexto="El resultado"):
             f"{contexto} es demasiado grande o no es finito. Usa valores de menor magnitud."
         )
     return valor
+
+
+def finito_exacto(numero, contexto="El resultado"):
+    """Como asegurar_finito, pero un Fraction se conserva exacto (para Gauss-Jordan con fracciones)."""
+    if isinstance(numero, Fraction):
+        return numero
+    return asegurar_finito(numero, contexto)
 
 
 def escala_de(valores):
@@ -52,6 +60,8 @@ def umbral_cero(escala):
 
 def limpiar_numero(numero, escala=None):
     """Da formato legible a un número finito, evitando -0 y decimales innecesarios."""
+    if isinstance(numero, Fraction):
+        return str(numero)          # exacto: 3/4, −181/60, 5
     numero = asegurar_finito(numero)
     umbral = EPSILON if escala is None else umbral_cero(escala)
     if abs(numero) <= umbral:

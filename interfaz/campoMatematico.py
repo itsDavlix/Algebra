@@ -61,8 +61,9 @@ class CampoMatematico(ttk.Frame):
                                  font=fuente(12, mono=True), width=ancho)
         self.entrada.grid(row=0, column=1, sticky="ew")
         self.entrada.entrada_matematica = True
+        # width=1: un texto largo (p. ej. un aviso) se recorta en vez de ensanchar toda la vista.
         self.vista = ttk.Label(self, text=texto_vacio, style=f"{prefijo}Pendiente.TLabel",
-                               font=fuente(11), anchor="w")
+                               font=fuente(11), anchor="w", width=1)
         self.vista.grid(row=1, column=1, sticky="ew", pady=(5, 0))
         self._crear_ventana_sugerencias()
         self.variable.trace_add("write", lambda *_: self._programar_validacion())
@@ -113,7 +114,15 @@ class CampoMatematico(ttk.Frame):
                 self.expresion, self.error = None, str(exc)
             if self.expresion is not None:
                 self.entrada.state(["!invalid"])
-                self.vista.configure(text=f"✓  {self.expresion.bonito}", foreground=PALETA["exito"])
+                # Una igualdad izq = der se resuelve como f(x) = izq − (der) = 0: se muestra así.
+                forma = (f"f(x) = {self.expresion.bonito} = 0" if self.expresion.es_igualdad
+                         else self.expresion.bonito)
+                aviso = getattr(self.expresion, "aviso", "")
+                if aviso:
+                    self.vista.configure(text=f"⚠  {forma}   ·  ¿«e(…)» es e^(…)? Se leyó como producto.",
+                                         foreground=PALETA["aviso"])
+                else:
+                    self.vista.configure(text=f"✓  {forma}", foreground=PALETA["exito"])
             else:
                 self.entrada.state(["invalid"])
                 self.vista.configure(text=f"✗  {self.error}", foreground=PALETA["error"])

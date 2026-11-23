@@ -57,8 +57,9 @@ def _evaluar(funcion, x):
 
 def muestrear(funcion, a, b, cantidad):
     """cantidad+1 puntos equiespaciados; None donde f no está definida."""
-    paso = (b - a) / cantidad
-    return [(a + i * paso, _evaluar(funcion, a + i * paso)) for i in range(cantidad + 1)]
+    # a·(1 − t) + b·t no desborda con extremos como ±1.7e308 (b − a sí lo haría).
+    puntos = [a * (1 - i / cantidad) + b * (i / cantidad) for i in range(cantidad + 1)]
+    return [(x, _evaluar(funcion, x)) for x in puntos]
 
 
 def refinar_cambio_de_signo(funcion, a, b, fa, fb, iteraciones=80):
@@ -77,6 +78,106 @@ def refinar_cambio_de_signo(funcion, a, b, fa, fb, iteraciones=80):
         else:
             a, fa = c, fc
     return a if abs(fa) <= abs(fb) else b
+
+
+# ---------------------------------------------------------------- continuidad
+@dataclass(frozen=True)
+class Discontinuidad:
+    x: float
+    tipo: str             # «polo» (asíntota vertical) o «dominio» (f no está definida)
+    explicacion: str
+
+
+def _limite_de_definicion(funcion, definido, indefinido, iteraciones=60):
+    """Estrecha el borde entre un punto donde f está definida y otro donde no."""
+    for _ in range(iteraciones):
+        medio = definido + (indefinido - definido) / 2
+        if medio in (definido, indefinido):
+            break
+        if _evaluar(funcion, medio) is None:
+            indefinido = medio
+        else:
+            definido = medio
+    return definido + (indefinido - definido) / 2
+
+
+def _es_polo(funcion, a, b, fa, fb):
+    """Un cambio de signo es un polo si |f| crece al estrecharlo, en vez de acercarse a 0."""
+    c = refinar_cambio_de_signo(funcion, a, b, fa, fb)
+    if c is None:
+        return True, None
+    valor = _evaluar(funcion, c)
+    return (valor is None or abs(valor) > max(abs(fa), abs(fb))), c
+
+
+def _redondear_borde(x, a, b):
+    """Quita el ruido del refinamiento: 1.8e−22 → 0, 1.9999999999 → 2."""
+    if abs(x) <= (b - a) * 1e-9:
+        return 0.0
+    return float(f"{x:.9g}")
+
+
+def discontinuidades(funcion, a, b, cantidad=800):
+    """Puntos de [a, b] donde f no es continua: fuera del dominio o asíntotas verticales.
+
+    Bolzano exige continuidad en todo [a, b]: un cambio de signo producido por un
+    polo (por ejemplo 1/(x − 1) en [0, 2]) no garantiza ninguna raíz.
+    """
+    if not (math.isfinite(a) and math.isfinite(b)) or a >= b:
+        return []
+    muestras = muestrear(funcion, a, b, cantidad)
+    hallados = []
+    # Tramos donde f no está definida: un punto excluido, un hueco o un extremo del dominio.
+    i = 0
+    while i < len(muestras):
+        if muestras[i][1] is not None:
+            i += 1
+            continue
+        j = i
+        while j + 1 < len(muestras) and muestras[j + 1][1] is None:
+            j += 1
+        izquierda = muestras[i - 1][0] if i > 0 else None
+        derecha = muestras[j + 1][0] if j + 1 < len(muestras) else None
+        borde_izq = (_redondear_borde(_limite_de_definicion(funcion, izquierda, muestras[i][0]), a, b)
+                     if izquierda is not None else None)
+        borde_der = (_redondear_borde(_limite_de_definicion(funcion, derecha, muestras[j][0]), a, b)
+                     if derecha is not None else None)
+        if borde_izq is not None and borde_der is not None and j - i <= 1:
+            # El valor «más redondo» de los candidatos: e^(1/x) desborda en (0, 0.0014] pero el punto es 0.
+            x = min((borde_izq, borde_der, _redondear_borde(borde_izq / 2 + borde_der / 2, a, b)),
+                    key=lambda v: len(f"{v:.6g}"))
+            hallados.append(Discontinuidad(x, "dominio", f"x = {_n(x)} está fuera del dominio "
+                                                         "(división entre cero o función no definida)."))
+        elif borde_izq is not None and borde_der is not None:
+            hallados.append(Discontinuidad(borde_izq, "dominio",
+                                           f"f no está definida entre x ≈ {_n(borde_izq)} y x ≈ {_n(borde_der)}."))
+        elif borde_der is not None:
+            hallados.append(Discontinuidad(borde_der, "dominio", f"f solo está definida para x > {_n(borde_der)}."))
+        elif borde_izq is not None:
+            hallados.append(Discontinuidad(borde_izq, "dominio", f"f solo está definida para x < {_n(borde_izq)}."))
+        else:
+            hallados.append(Discontinuidad(a, "dominio", "f no se puede evaluar en ningún punto del intervalo "
+                                                         "(fuera del dominio o valores demasiado grandes)."))
+        i = j + 1
+    # Cambios de signo que pasan por ±∞ (asíntotas verticales que ninguna muestra tocó).
+    for (xa, fa), (xb, fb) in zip(muestras, muestras[1:]):
+        if fa is not None and fb is not None and fa != 0 and fb != 0 and (fa < 0) != (fb < 0):
+            polo, x = _es_polo(funcion, xa, xb, fa, fb)
+            if polo:
+                x = _redondear_borde(x if x is not None else xa + (xb - xa) / 2, a, b)
+                hallados.append(Discontinuidad(x, "polo", f"asíntota vertical en x ≈ {_n(x)}: f cambia "
+                                                          "de signo pasando por ±∞, no por 0."))
+    return sorted(hallados, key=lambda p: p.x)
+
+
+def comprobar_continuidad(funcion, a, b):
+    """Mensaje si f no es continua en [a, b] (Bolzano no aplica); None si lo es en la muestra."""
+    puntos = discontinuidades(funcion, a, b)
+    if not puntos:
+        return None
+    detalle = "; ".join(p.explicacion.rstrip(".") for p in puntos[:3]) + "."
+    return (f"f no es continua en [{_n(a)}, {_n(b)}]: {detalle} Bolzano no aplica en este intervalo; "
+            "elige uno que no contenga ese punto.")
 
 
 def _cambios_de_signo(muestras):

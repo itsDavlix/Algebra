@@ -3,7 +3,7 @@
 import re
 
 from nucleo.numeros import (
-    convertir_numero, limpiar_numero, asegurar_finito, escala_de, umbral_cero,
+    convertir_numero, limpiar_numero, asegurar_finito, escala_de, finito_exacto, umbral_cero,
 )
 
 MAX_FILAS = 40
@@ -90,30 +90,48 @@ def leer_matriz(texto, nombre="matriz"):
     return matriz
 
 
+def _celdas(matriz):
+    """Textos de cada entrada, con «−» tipográfico y alineados a la derecha por columna."""
+    textos = [[limpiar_numero(x, abs(x)).replace("-", "−") for x in fila] for fila in matriz]
+    anchos = [max(len(fila[j]) for fila in textos) for j in range(len(textos[0]))]
+    return [[texto.rjust(anchos[j]) for j, texto in enumerate(fila)] for fila in textos]
+
+
 def matriz_a_texto(matriz):
     if not matriz:
         return "[]"
     _validar_matriz(matriz)
-    return "\n".join(
-        "[ " + "   ".join(limpiar_numero(x, abs(x)) for x in fila) + " ]"
-        for fila in matriz
-    )
+    return "\n".join("[ " + "  ".join(fila) + " ]" for fila in _celdas(matriz))
 
 
 def matriz_ampliada_a_texto(matriz, separacion):
     _validar_matriz(matriz, "La matriz ampliada", validar_limites=False)
     if not isinstance(separacion, int) or not 0 < separacion < len(matriz[0]):
         raise ValueError("La separación de la matriz ampliada no es válida.")
-    lineas = []
-    for fila in matriz:
-        izquierda = "   ".join(
-            limpiar_numero(x, abs(x)) for x in fila[:separacion]
-        )
-        derecha = "   ".join(
-            limpiar_numero(x, abs(x)) for x in fila[separacion:]
-        )
-        lineas.append(f"[ {izquierda}   |   {derecha} ]")
-    return "\n".join(lineas)
+    return "\n".join(f"[ {'  '.join(fila[:separacion])}  |  {'  '.join(fila[separacion:])} ]"
+                     for fila in _celdas(matriz))
+
+
+_SUB = str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")
+
+
+def _entrada(i, j):
+    """Nombre del elemento: a₁₂, o a₁,₁₂ cuando algún índice tiene dos cifras."""
+    separador = "," if i >= 9 or j >= 9 else ""
+    return f"a{str(i + 1).translate(_SUB)}{separador}{str(j + 1).translate(_SUB)}"
+
+
+def motivo_intercambio(matriz, fila, mejor, columna):
+    """Por qué se intercambian filas: pivote nulo o pivoteo parcial (mayor |aᵢⱼ| de la columna)."""
+    actual = matriz[fila][columna]
+    elegido = limpiar_numero(abs(matriz[mejor][columna]), abs(matriz[mejor][columna])).replace("-", "−")
+    if actual == 0:
+        causa = f"{_entrada(fila, columna)} = 0 no sirve de pivote (habría que dividir entre 0)"
+    else:
+        valor = limpiar_numero(abs(actual), abs(actual))
+        causa = f"|{_entrada(fila, columna)}| = {valor} no es el mayor de la columna"
+    return (f"{causa}. Pivoteo parcial: el mayor |aᵢ{str(columna + 1).translate(_SUB)}| desde F{fila + 1} "
+            f"es {elegido}, en F{mejor + 1}.")
 
 
 def dimensiones(matriz):
@@ -174,13 +192,16 @@ def _buscar_pivote(matriz, fila_inicial, columna, umbral):
 def _normalizar_fila(matriz, indice_fila, pivote):
     """Divide una fila aumentada por su pivote y valida los resultados."""
     matriz[indice_fila] = [
-        asegurar_finito(valor / pivote, "Valor durante Gauss-Jordan")
+        finito_exacto(valor / pivote, "Valor durante Gauss-Jordan")
         for valor in matriz[indice_fila]
     ]
 
 
 def _eliminar_columna(matriz, fila_pivote, columna, umbral, ancho):
-    """Elimina una columna respecto del pivote y retorna las filas modificadas."""
+    """Elimina una columna respecto del pivote.
+
+    Devuelve [(fila, factor, matriz_tras_la_operación)] para mostrar cada operación con su estado.
+    """
     cambios = []
     for indice_fila in range(len(matriz)):
         if indice_fila == fila_pivote:
@@ -192,19 +213,20 @@ def _eliminar_columna(matriz, fila_pivote, columna, umbral, ancho):
             continue
         nueva_fila = []
         for indice in range(ancho):
-            producto = asegurar_finito(
+            producto = finito_exacto(
                 factor * matriz[fila_pivote][indice],
                 "Producto durante Gauss-Jordan",
             )
             nueva_fila.append(
-                asegurar_finito(
+                finito_exacto(
                     matriz[indice_fila][indice] - producto,
                     "Valor durante Gauss-Jordan",
                 )
             )
-        nueva_fila[columna] = 0.0
+        nueva_fila[columna] = nueva_fila[columna] * 0     # 0 del mismo tipo (float o Fraction)
         matriz[indice_fila] = nueva_fila
-        cambios.append((indice_fila, factor))
+        # Copia de la matriz justo después de esta operación: cada paso muestra su propio estado.
+        cambios.append((indice_fila, factor, [fila[:] for fila in matriz]))
     return cambios
 
 
@@ -286,6 +308,7 @@ def _rango_por_eliminacion(matriz, nombre="A", registrar_pasos=False):
                 numero_paso += 1
             continue
         if mejor_fila != fila_pivote:
+            motivo = motivo_intercambio(reducida, fila_pivote, mejor_fila, columna)
             reducida[fila_pivote], reducida[mejor_fila] = (
                 reducida[mejor_fila], reducida[fila_pivote]
             )
@@ -294,6 +317,7 @@ def _rango_por_eliminacion(matriz, nombre="A", registrar_pasos=False):
                     numero_paso,
                     f"Intercambiar F{fila_pivote + 1} ↔ F{mejor_fila + 1}.",
                     reducida, None,
+                    motivo,
                 ))
                 numero_paso += 1
 
@@ -313,12 +337,12 @@ def _rango_por_eliminacion(matriz, nombre="A", registrar_pasos=False):
             reducida, fila_pivote, columna, umbral, columnas,
         )
         if registrar_pasos:
-            for indice_fila, factor in cambios:
+            for indice_fila, factor, instantanea in cambios:
                 signo = "−" if factor >= 0 else "+"
                 pasos.append(_texto_paso_gauss_jordan(
                     numero_paso,
                     f"Eliminar la entrada de F{indice_fila + 1}, columna {columna + 1}:",
-                    reducida, None,
+                    instantanea, None,
                     f"F{indice_fila + 1} ← F{indice_fila + 1} {signo} "
                     f"({limpiar_numero(abs(factor), abs(factor))})F{fila_pivote + 1}.",
                 ))
@@ -373,10 +397,11 @@ def matriz_inversa_con_pasos(matriz):
             raise ValueError("La matriz no tiene inversa porque es singular (determinante igual a 0).")
 
         if fila_pivote != columna:
+            motivo = motivo_intercambio(aumentada, columna, fila_pivote, columna)
             aumentada[columna], aumentada[fila_pivote] = aumentada[fila_pivote], aumentada[columna]
             pasos.append(_texto_paso_gauss_jordan(
                 numero_paso, f"Intercambiar F{columna + 1} ↔ F{fila_pivote + 1}.",
-                aumentada, n,
+                aumentada, n, motivo,
             ))
             numero_paso += 1
 
@@ -391,13 +416,13 @@ def matriz_inversa_con_pasos(matriz):
             numero_paso += 1
 
         cambios = _eliminar_columna(aumentada, columna, columna, umbral, 2 * n)
-        for indice_fila, factor in cambios:
+        for indice_fila, factor, instantanea in cambios:
             signo = "−" if factor >= 0 else "+"
             magnitud = limpiar_numero(abs(factor), abs(factor))
             pasos.append(_texto_paso_gauss_jordan(
                 numero_paso,
                 f"Hacer 0 la entrada de F{indice_fila + 1}, columna {columna + 1}:",
-                aumentada, n,
+                instantanea, n,
                 f"F{indice_fila + 1} ← F{indice_fila + 1} {signo} ({magnitud})F{columna + 1}.",
             ))
             numero_paso += 1

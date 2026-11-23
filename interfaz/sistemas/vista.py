@@ -9,6 +9,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from interfaz.campoMatematico import CampoValor
+from interfaz.ayudas import AyudaEmergente
 from interfaz.componentes import (
     MenuEjercicios, PanelProcedimiento, SelectorSegmentado, TablaPaginada, tarjeta,
 )
@@ -18,6 +19,9 @@ from interfaz.motorGrafica import PlanoCartesiano
 from interfaz.sistemas import convergencia
 from nucleo import procedimientos_sistemas as ps
 from nucleo.determinantes import determinante
+from nucleo.diagnostico import (
+    FUNCIONA, NO_FUNCIONA, REORDENAR, anotar_dominancia, diagnosticar,
+)
 from nucleo.ejercicios import GUIA, ejercicios_de
 from nucleo.iterativos import (
     dominancia_diagonal, matriz_iteracion, radio_espectral, reordenar_para_dominancia, resolver_iterativo,
@@ -37,6 +41,10 @@ DESCRIPCIONES = {
     "Gauss-Seidel": "Método iterativo: como Jacobi, pero usa de inmediato los valores recién calculados.",
 }
 COLORES_NIVEL = {"pendiente": "texto_suave", "ok": "exito", "aviso": "aviso", "error": "error"}
+COLOR_VEREDICTO = {FUNCIONA: "exito", REORDENAR: "aviso", NO_FUNCIONA: "error"}
+FILAS_VISTA_PREVIA = 8
+ETIQUETA_NUMEROS = {"Decimales": "0.25", "Fracciones": "1/4"}
+MODO_POR_ETIQUETA = {etiqueta: modo for modo, etiqueta in ETIQUETA_NUMEROS.items()}
 
 
 class VistaSistemas(ttk.Frame):
@@ -51,6 +59,7 @@ class VistaSistemas(ttk.Frame):
         self.resultados = {}
         self.comparacion = None
         self.modo_grafica = "Componentes"
+        self.modo_numeros = "Decimales"
         self._programado = None
         self._escribiendo = False
         self.ventanas = {}
@@ -105,7 +114,18 @@ class VistaSistemas(ttk.Frame):
         self.texto.colores_propios = True
         self.texto.grid(row=1, column=0, sticky="nsew")
         self.texto.bind("<<Modified>>", self._al_modificar)
-        self.vista_previa = ttk.Label(entrada, style="Panel.Formula.TLabel", justify="left")
+        # Matriz aumentada con la diagonal resaltada y, a la derecha, |aᵢᵢ| frente a Σ|aᵢⱼ|.
+        self.vista_previa = tk.Text(entrada, height=1, width=1, wrap="none", font=fuente(10, mono=True),
+                                    background=PALETA["tarjeta"], foreground=PALETA["texto"], relief="flat",
+                                    borderwidth=0, highlightthickness=0, padx=0, pady=0, cursor="arrow",
+                                    state="disabled")
+        self.vista_previa.colores_propios = True
+        self.vista_previa.tag_configure("diagonal", foreground=PALETA["acento_hover"], font=fuente(10, "bold", mono=True))
+        self.vista_previa.tag_configure("cero", foreground=PALETA["error"], font=fuente(10, "bold", mono=True),
+                                        background=PALETA["error_suave"])
+        self.vista_previa.tag_configure("cumple", foreground=PALETA["exito"])
+        self.vista_previa.tag_configure("falla", foreground=PALETA["error"])
+        self.vista_previa.tag_configure("tenue", foreground=PALETA["texto_tenue"], font=fuente(9))
         self.vista_previa.grid(row=2, column=0, sticky="w", pady=(8, 0))
         self.estado_entrada = ttk.Label(entrada, style="Panel.Ayuda.TLabel", justify="left", wraplength=320)
         self.estado_entrada.grid(row=3, column=0, sticky="ew", pady=(4, 0))
@@ -155,17 +175,105 @@ class VistaSistemas(ttk.Frame):
         self.campo_iteraciones.establecer("100")
         self.analisis = ttk.Label(lateral, style="Panel.Formula.TLabel", justify="left")
         self.analisis.grid(row=2, column=0, columnspan=3, sticky="nw", pady=(10, 4))
+        self._construir_diagnostico(lateral)
         self.validacion = ttk.Label(lateral, style="Panel.Pendiente.TLabel", justify="left", wraplength=300)
-        self.validacion.grid(row=3, column=0, columnspan=3, sticky="ew", pady=(0, 8))
-        lateral.rowconfigure(3, weight=1)
+        self.validacion.grid(row=4, column=0, columnspan=3, sticky="ew", pady=(4, 8))
+        lateral.rowconfigure(4, weight=1)
         botones = ttk.Frame(lateral, style="Panel.TFrame")
-        botones.grid(row=4, column=0, columnspan=3, sticky="ew")
+        botones.grid(row=5, column=0, columnspan=3, sticky="ew")
         botones.columnconfigure((0, 1), weight=1)
         self.boton_reordenar = ttk.Button(botones, text="Reordenar filas", style="Panel.TButton",
                                           command=self.reordenar)
         self.boton_reordenar.grid(row=0, column=0, sticky="ew", padx=(0, 6))
         ttk.Button(botones, text="Resolver", style="Panel.Accion.TButton", command=self.resolver).grid(
             row=0, column=1, sticky="ew")
+
+    def _construir_diagnostico(self, padre):
+        """Una fila por método: veredicto, motivo y estimación de iteraciones. Clic para usarlo."""
+        self.diagnostico = tk.Frame(padre, background=PALETA["tarjeta"])
+        self.diagnostico.colores_propios = True
+        self.diagnostico.grid(row=3, column=0, columnspan=3, sticky="ew")
+        self.diagnostico.columnconfigure(0, weight=1)
+        self.veredictos = []
+        self.filas_diagnostico = {}
+        for indice, metodo in enumerate(METODOS):
+            fila = tk.Frame(self.diagnostico, background=PALETA["tarjeta"], cursor="hand2", padx=6, pady=1)
+            fila.grid(row=indice, column=0, sticky="ew", pady=(0, 1))
+            fila.columnconfigure(1, weight=1)
+            titulo = tk.Label(fila, anchor="w", font=fuente(10, "bold"), background=PALETA["tarjeta"])
+            titulo.grid(row=0, column=0, sticky="w")
+            estimacion = tk.Label(fila, anchor="e", font=fuente(9, mono=True), background=PALETA["tarjeta"],
+                                  foreground=PALETA["texto_tenue"])
+            estimacion.grid(row=0, column=1, sticky="e")
+            detalle = tk.Label(fila, anchor="w", justify="left", font=fuente(9),
+                               background=PALETA["tarjeta"], foreground=PALETA["texto_suave"])
+            detalle.grid(row=1, column=0, columnspan=2, sticky="w", padx=(14, 0))
+            ayuda = AyudaEmergente(fila, "")
+            for widget in (fila, titulo, estimacion, detalle):
+                widget.colores_propios = True
+                widget.bind("<Button-1>", lambda _e, m=metodo: self.usar_metodo_recomendado(m))
+                if widget is not fila:
+                    widget.bind("<Enter>", ayuda._mostrar)
+                    widget.bind("<Leave>", ayuda._ocultar)
+            self.filas_diagnostico[metodo] = (fila, titulo, estimacion, detalle, ayuda)
+
+    def _pintar_diagnostico(self):
+        """Colorea cada veredicto y marca el método activo."""
+        por_metodo = {v.metodo: v for v in self.veredictos}
+        for metodo, (fila, titulo, estimacion, detalle, ayuda) in self.filas_diagnostico.items():
+            veredicto = por_metodo.get(metodo)
+            fondo = PALETA["acento_suave"] if metodo == self.metodo and veredicto else PALETA["tarjeta"]
+            for widget in (fila, titulo, estimacion, detalle):
+                widget.configure(background=fondo)
+            if veredicto is None:
+                titulo.configure(text="")
+                estimacion.configure(text="")
+                detalle.configure(text="")
+                fila.grid_remove()
+                continue
+            fila.grid()
+            titulo.configure(text=f"{veredicto.marca} {metodo}",
+                             foreground=PALETA[COLOR_VEREDICTO.get(veredicto.estado, "texto_suave")])
+            estimacion.configure(text=f"≈ {veredicto.iteraciones} iter." if veredicto.iteraciones else "")
+            detalle.configure(text=veredicto.breve or veredicto.detalle)
+            accion = {REORDENAR: "Clic: reordena y usa este método.", FUNCIONA: "Clic: usar este método."}.get(
+                veredicto.estado, "Clic: ver este método.")
+            ayuda.texto = f"{veredicto.detalle}\n{accion}"
+
+    def _diagnosticar(self):
+        try:
+            tolerancia = self.campo_tolerancia.obtener()
+        except ValueError:
+            tolerancia = 1e-6
+        try:
+            self.veredictos = diagnosticar(self.A, self.b, tolerancia if tolerancia > 0 else 1e-6)
+        except (ValueError, ZeroDivisionError, OverflowError):
+            self.veredictos = []
+        self._pintar_diagnostico()
+
+    def usar_metodo_recomendado(self, metodo):
+        """Clic en una fila del diagnóstico: cambia al método y, si hace falta, reordena las ecuaciones."""
+        veredicto = next((v for v in self.veredictos if v.metodo == metodo), None)
+        if veredicto is None:
+            return
+        self.cambiar_metodo(metodo)
+        if veredicto.estado == REORDENAR:
+            self.reordenar()
+
+    def cambiar_modo_numeros(self, modo):
+        """Fracciones exactas o decimales en Gauss-Jordan; si ya hay resultado, se rehace."""
+        self.modo_numeros = modo
+        self.selector_numeros.marcar(ETIQUETA_NUMEROS[modo])
+        if self.metodo == "Gauss-Jordan" and self.resultado is not None:
+            self.resolver()
+
+    def _actualizar_selector_numeros(self):
+        disponible = (self.metodo == "Gauss-Jordan" and self.A is not None
+                      and ps.puede_ser_exacto(self.A, self.b))
+        if disponible:
+            self.selector_numeros.grid()
+        else:
+            self.selector_numeros.grid_remove()
 
     def _construir_resultados(self):
         zona = ttk.Frame(self, padding=(0, 10, 0, 0))
@@ -175,7 +283,21 @@ class VistaSistemas(ttk.Frame):
         zona.columnconfigure(1, weight=3)
         zona.columnconfigure(2, weight=2, minsize=320)
         tarjeta_resultado = tarjeta(zona, row=0, column=0, sticky="nsew", padx=(0, 12))
-        ttk.Label(tarjeta_resultado, text="RESULTADO", style="Panel.Seccion.TLabel").pack(anchor="w")
+        cabecera_resultado = ttk.Frame(tarjeta_resultado, style="Panel.TFrame")
+        cabecera_resultado.pack(fill="x")
+        cabecera_resultado.columnconfigure(0, weight=1)
+        ttk.Label(cabecera_resultado, text="RESULTADO", style="Panel.Seccion.TLabel").grid(row=0, column=0, sticky="w")
+        # Gauss-Jordan con fracciones exactas o con decimales; solo aparece si los datos lo permiten.
+        # Etiquetas cortas («0.25» / «1/4») para no ensanchar ni alargar la tarjeta; la ayuda dice qué hacen.
+        self.selector_numeros = SelectorSegmentado(
+            cabecera_resultado, tuple(ETIQUETA_NUMEROS.values()),
+            lambda etiqueta: self.cambiar_modo_numeros(MODO_POR_ETIQUETA[etiqueta]))
+        self.selector_numeros.grid(row=0, column=1, sticky="e")
+        self.selector_numeros.marcar(ETIQUETA_NUMEROS[self.modo_numeros])
+        for etiqueta, ayuda in zip(self.selector_numeros.opciones.values(),
+                                   ("Gauss-Jordan con decimales", "Gauss-Jordan con fracciones exactas")):
+            AyudaEmergente(etiqueta, ayuda)
+        self.selector_numeros.grid_remove()
         self.estado = ttk.Label(tarjeta_resultado, text="Sin calcular", style="Panel.Pendiente.TLabel")
         self.estado.pack(anchor="w", pady=(6, 4))
         self.valor = ttk.Label(tarjeta_resultado, text="", style="Panel.Formula.TLabel", justify="left",
@@ -193,6 +315,8 @@ class VistaSistemas(ttk.Frame):
     # ================================================================ método
     def _aplicar_metodo(self):
         self.selector.marcar(self.metodo)
+        if hasattr(self, "selector_numeros"):
+            self._actualizar_selector_numeros()
         self.etiqueta_formula.configure(text=FORMULAS[self.metodo])
         self.etiqueta_descripcion.configure(text=DESCRIPCIONES[self.metodo])
         iterativo = self.metodo in ITERATIVOS
@@ -247,6 +371,7 @@ class VistaSistemas(ttk.Frame):
 
     def _analizar(self):
         self._analizar_texto()
+        self._actualizar_selector_numeros()
         if self.modo_grafica == "Plano":      # el plano depende de A: se rehace con el sistema nuevo
             self._dibujar_grafica()
 
@@ -257,7 +382,9 @@ class VistaSistemas(ttk.Frame):
         texto = self.obtener_texto()
         if not texto:
             self.variables, self.A, self.b = (), None, None
-            self.vista_previa.configure(text="")
+            self._pintar_matriz()
+            self.veredictos = []
+            self._pintar_diagnostico()
             self.estado_entrada.configure(text="Escribe el sistema o carga un ejercicio.", foreground=PALETA["texto_suave"])
             self.analisis.configure(text="")
             self._validar("Paso ①: escribe el sistema a la izquierda.", "pendiente")
@@ -266,7 +393,9 @@ class VistaSistemas(ttk.Frame):
             variables, A, b = leer_sistema(texto)
         except ValueError as exc:
             self.variables, self.A, self.b = (), None, None
-            self.vista_previa.configure(text="")
+            self._pintar_matriz()
+            self.veredictos = []
+            self._pintar_diagnostico()
             self.estado_entrada.configure(text=f"✗ {exc}", foreground=PALETA["error"])
             self.analisis.configure(text="")
             self._validar(str(exc), "error")
@@ -277,21 +406,61 @@ class VistaSistemas(ttk.Frame):
             text=f"✓ {n} ecuaciones · {m} incógnitas ({', '.join(nombre_bonito(v) for v in variables)})"
                  + (f" · reordenado {', '.join(str(p + 1) for p in self.reordenado)}" if self.reordenado else ""),
             foreground=PALETA["exito"])
-        self.vista_previa.configure(text=self._matriz_aumentada())
+        self._pintar_matriz()
+        self._diagnosticar()
         if self.metodo in ITERATIVOS:
             self.tabla.configurar_columnas(ps.columnas_iterativas(self.variables))
         self._mostrar_analisis()
 
-    def _matriz_aumentada(self):
-        ancho = max(len(ps.coef(v)) for fila in self.A for v in fila + [0])
-        ancho_b = max(len(ps.coef(v)) for v in self.b)
-        return "\n".join("[ " + " ".join(ps.coef(v).replace("-", "−").rjust(ancho) for v in fila)
-                         + " | " + ps.coef(bi).replace("-", "−").rjust(ancho_b) + " ]"
-                         for fila, bi in zip(self.A, self.b))
+    def _pintar_matriz(self):
+        """[A | B] con la diagonal en color (ceros en rojo) y la dominancia por fila a la derecha."""
+        texto = self.vista_previa
+        texto.configure(state="normal")
+        texto.delete("1.0", "end")
+        if self.A is None:
+            texto.configure(state="disabled", width=1, height=1)
+            return
+        A, b = self.A, self.b
+        cuadrada = len(A) == len(A[0])
+        signo = lambda v: ps.coef(v).replace("-", "−")
+        ancho = max(len(signo(v)) for fila in A for v in fila + [0])
+        ancho_b = max(len(signo(v)) for v in b)
+        dominancia = anotar_dominancia(A) if cuadrada else []
+        visibles = min(len(A), FILAS_VISTA_PREVIA)
+        lineas = 0
+        largo = 0
+        for i in range(visibles):
+            inicio = int(texto.index("end-1c").split(".")[1])
+            texto.insert("end", "[ ")
+            for j, valor in enumerate(A[i]):
+                celda = signo(valor).rjust(ancho)
+                etiqueta = ("cero" if valor == 0 else "diagonal") if cuadrada and i == j else ()
+                texto.insert("end", celda, etiqueta)
+                texto.insert("end", " ")
+            texto.insert("end", "| " + signo(b[i]).rjust(ancho_b) + " ]")
+            if dominancia:
+                diagonal, suma, cumple = dominancia[i]
+                texto.insert("end", f"  {signo(diagonal)} {'>' if cumple else '≤'} {signo(suma)} "
+                                    f"{'✓' if cumple else '✗'}", "cumple" if cumple else "falla")
+            largo = max(largo, int(texto.index("end-1c").split(".")[1]) - inicio)
+            texto.insert("end", "\n")
+            lineas += 1
+        if len(A) > visibles:
+            texto.insert("end", f"⋮  {len(A) - visibles} filas más\n", "tenue")
+            lineas += 1
+        if dominancia:
+            leyenda = "diagonal en color · ceros en rojo · |aᵢᵢ| vs Σ|aᵢⱼ|"
+            texto.insert("end", leyenda, "tenue")
+            largo = max(largo, len(leyenda))
+            lineas += 1
+        else:
+            texto.delete("end-2c", "end-1c")
+        texto.configure(state="disabled", width=largo, height=lineas)
 
     def _mostrar_analisis(self):
         A, n, m = self.A, len(self.A), len(self.variables)
         lineas = []
+        self._pintar_diagnostico()
         if n != m:
             lineas.append(f"Sistema {n}×{m}: no es cuadrado.")
             self.analisis.configure(text="\n".join(lineas))
@@ -306,15 +475,16 @@ class VistaSistemas(ttk.Frame):
             return self._validar("✓ Listo para Gauss-Jordan." if det != 0 else
                                  "det(A) = 0: Gauss-Jordan indicará si hay infinitas soluciones o ninguna.",
                                  "ok" if det != 0 else "aviso")
-        filas = dominancia_diagonal(A)
-        marcas = " ".join(f"F{f.fila}{'✓' if f.cumple else '✗'}" for f in filas)
-        dominante = all(f.cumple for f in filas)
-        lineas.append(f"Dominancia diagonal: {marcas}")
+        dominante = all(f.cumple for f in dominancia_diagonal(A))
         if any(A[i][i] == 0 for i in range(n)):
             self.analisis.configure(text="\n".join(lineas))
+            veredicto = next((v for v in self.veredictos if v.metodo == self.metodo), None)
+            if veredicto is not None and veredicto.estado == NO_FUNCIONA:
+                otros = [v.metodo for v in self.veredictos if v.estado in (FUNCIONA, REORDENAR)]
+                consejo = f" Usa {' o '.join(otros)}." if otros else ""
+                return self._validar(f"{veredicto.detalle}{consejo}", "error")
             return self._validar("Hay ceros en la diagonal: no se puede despejar. Pulsa «Reordenar filas».", "error")
         rho = radio_espectral(matriz_iteracion(A, self.metodo))
-        lineas.append(f"ρ(T_{'J' if self.metodo == 'Jacobi' else 'GS'}) ≈ {rho:.4f}  {'< 1 ✓' if rho < 1 else '≥ 1 ✗'}")
         self.analisis.configure(text="\n".join(lineas))
         if dominante:
             return self._validar("✓ Estrictamente dominante: la convergencia está garantizada.", "ok")
@@ -354,7 +524,7 @@ class VistaSistemas(ttk.Frame):
 
     def _resolver(self, metodo):
         if metodo == "Gauss-Jordan":
-            return ps.resolver_directo(self.A, self.b, self.variables)
+            return ps.resolver_directo(self.A, self.b, self.variables, exacto=self.modo_numeros == "Fracciones")
         x0, tolerancia, iteraciones = self._parametros()
         return resolver_iterativo(self.A, self.b, metodo, x0, tolerancia, iteraciones, self.variables,
                                   self.reordenado)
@@ -430,8 +600,12 @@ class VistaSistemas(ttk.Frame):
             self.tabla.definir_filas(ps.filas_iterativas(r), lambda i: (
                 ["final_ok" if r.convergio else "final_no"] if i == total else []))
             self.panel.mostrar(self.comparacion or ps.resumen_iterativo(r))
-        self.valor.configure(text="\n".join(f"{nombre_bonito(v)} = {ps.g(x, 10)}"
-                                            for v, x in zip(self.variables, solucion)) or "—")
+        exacta = getattr(r, "exacta", ()) if directo else ()
+        self.valor.configure(text="\n".join(
+            f"{nombre_bonito(v)} = {str(q).replace('-', '−') if exacta else ps.g(x, 10)}"
+            for v, x, q in zip(self.variables, solucion, exacta or solucion)) or "—")
+        if exacta:
+            datos.insert(0, "Exacta: ≈ decimales en el procedimiento")
         self.datos.configure(text="\n".join(d for d in datos if d))
         self._dibujar_grafica()
 
@@ -536,6 +710,9 @@ class VistaSistemas(ttk.Frame):
         if ejercicio.metodo != self.metodo:
             self.cambiar_metodo(ejercicio.metodo)
         self.variable_x0.set(datos.get("x0", ""))
+        # Los ejercicios que piden aritmética exacta se cargan en fracciones; los demás, en decimales.
+        self.modo_numeros = "Fracciones" if datos.get("exacto") else "Decimales"
+        self.selector_numeros.marcar(ETIQUETA_NUMEROS[self.modo_numeros])
         self.campo_tolerancia.establecer("1e-6")
         self.campo_iteraciones.establecer("200" if ejercicio.metodo in ITERATIVOS else "100")
         self.establecer_texto(datos["sistema"])

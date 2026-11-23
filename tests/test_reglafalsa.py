@@ -60,9 +60,8 @@ class PruebasReglaFalsa(unittest.TestCase):
         self.assertEqual(casi_lineal.extremo_estancado, "")
 
     def test_polos_y_raiz_de_tangente(self):
-        polo = resolver_reglafalsa("tan(x)", 1, 2, 1e-6, 1000)
-        self.assertFalse(polo.convergio)
-        self.assertIn("discontinuidad", polo.motivo.lower())
+        with self.assertRaisesRegex(ValueError, "asíntota vertical en x ≈ 1.5708"):
+            resolver_reglafalsa("tan(x)", 1, 2, 1e-6, 1000)
 
         raiz = resolver_reglafalsa("tan(x) - 1", 0, 1.5, 1e-10, 500)
         self.assertTrue(raiz.convergio, raiz.motivo)
