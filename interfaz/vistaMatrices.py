@@ -69,6 +69,7 @@ class VistaMatrices(ttk.Frame):
         MenuEjercicios(acciones, ejercicios_de(("Inversa", "Determinante")), self.cargar_ejercicio).pack(
             side="left", padx=(0, 6))
         ttk.Button(acciones, text="Ejemplo", command=self.cargar_ejemplo).pack(side="left", padx=(0, 6))
+        ttk.Button(acciones, text="Ver inversa", command=self.mostrar_inversa).pack(side="left", padx=(0, 6))
         ttk.Button(acciones, text="Limpiar", command=self.limpiar).pack(side="left")
         self.selector = SelectorSegmentado(encabezado, OPERACIONES, self.cambiar_operacion)
         self.selector.grid(row=1, column=0, columnspan=3, sticky="w", pady=(10, 0))
@@ -273,6 +274,11 @@ class VistaMatrices(ttk.Frame):
         self.panel.mostrar([])
 
     # ================================================================ acciones
+    def mostrar_inversa(self):
+        """Selecciona la inversa y la calcula usando la matriz A actual."""
+        self.cambiar_operacion("A⁻¹")
+        self.calcular()
+
     def _escribir(self, nombre, texto):
         caja = self.textos[nombre]
         estado = str(caja.cget("state"))

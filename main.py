@@ -3,7 +3,6 @@ Universidad Americana (UAM) - Álgebra Lineal (MTM0120)
 
 DAVID ALEJANDRO ESPINOZA LARGAESPADA
 ERICK ANTONIO ARANA ESPINOZA
-JULIAN ALONSO TORREZ VALDIVIA
 
 Características:
 - Operaciones con vectores de dimensión n y combinación lineal.
